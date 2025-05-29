@@ -7,10 +7,25 @@
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <link rel="manifest" href="manifest.json">
     <link type="text/css" rel="stylesheet" href="main.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <style>
       body {
         background-color: #bfe3dd;
         color: #000;
+      }
+      #info-panel {
+        font-family: Arial, sans-serif;
+        color: #333;
+      }
+      #info-panel h2 {
+        margin-top: 0;
+        color: #2c3e50;
+      }
+      #info-panel ul {
+        padding-left: 20px;
+      }
+      #info-panel li {
+        margin: 5px 0;
       }
     </style>
   </head>
@@ -44,6 +59,25 @@
       const forwardOffset = 0.1; // How much to move forward
       const lerpFactor = 0.15; // Slightly faster transition
       
+      // Camera setup
+      const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+      camera.position.set( 10, 10, 10 );
+      
+      // Controls setup
+      const controls = new OrbitControls( camera, renderer.domElement );
+      controls.target.set( 0, 0, 0 );
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.enablePan = false;
+      controls.mouseButtons.RIGHT = null;
+      controls.mouseButtons.MIDDLE = null;
+      controls.update();
+      
+      let isZoomed = false;
+      let originalCameraPosition = new THREE.Vector3();
+      let originalControlsTarget = new THREE.Vector3();
+      let infoPanel = null;
+      
       // Mouse move handler
       function onMouseMove(event) {
         mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -58,22 +92,143 @@
         }
       }
       
+      // Click handler
+      function onClick(event) {
+        if (nft1Undercover && raycaster.intersectObject(nft1Undercover, true).length > 0) {
+          if (!isZoomed) {
+            // Salva la posizione originale
+            originalCameraPosition.copy(camera.position);
+            originalControlsTarget.copy(controls.target);
+            
+            // Calcola la posizione per la vista dettagliata
+            const targetPosition = nft1Undercover.position.clone();
+            const zoomDistance = 2;
+            
+            // Anima la camera
+            gsap.to(camera.position, {
+              x: targetPosition.x,
+              y: targetPosition.y,
+              z: targetPosition.z + zoomDistance,
+              duration: 1,
+              ease: "power2.inOut",
+              onComplete: () => {
+                // Blocca lo zoom out nella vista dettagliata
+                controls.minDistance = zoomDistance;
+                controls.maxDistance = zoomDistance;
+                // Disabilita completamente i controlli orbitali
+                controls.enabled = false;
+                controls.update();
+              }
+            });
+            
+            gsap.to(controls.target, {
+              x: targetPosition.x,
+              y: targetPosition.y,
+              z: targetPosition.z,
+              duration: 1,
+              ease: "power2.inOut"
+            });
+            
+            // Mostra il pannello info
+            showInfoPanel();
+            
+            isZoomed = true;
+          }
+        }
+      }
+      
+      // Funzione per mostrare il pannello info
+      function showInfoPanel() {
+        if (!infoPanel) {
+          infoPanel = document.createElement('div');
+          infoPanel.id = 'info-panel';
+          infoPanel.style.position = 'fixed';
+          infoPanel.style.right = '20px';
+          infoPanel.style.top = '20px';
+          infoPanel.style.width = '300px';
+          infoPanel.style.padding = '20px';
+          infoPanel.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+          infoPanel.style.borderRadius = '10px';
+          infoPanel.style.boxShadow = '0 0 10px rgba(0,0,0,0.2)';
+          infoPanel.style.transform = 'translateX(100%)';
+          infoPanel.style.transition = 'transform 0.5s ease';
+          
+          // Aggiungi il contenuto del pannello
+          infoPanel.innerHTML = `
+            <h2>NFT Undercover</h2>
+            <p>Questo è un NFT unico nel suo genere...</p>
+            <p>Caratteristiche:</p>
+            <ul>
+              <li>Caratteristica 1</li>
+              <li>Caratteristica 2</li>
+              <li>Caratteristica 3</li>
+            </ul>
+            <button id="back-to-main" style="
+              margin-top: 15px;
+              padding: 8px 16px;
+              background-color: #2c3e50;
+              color: white;
+              border: none;
+              border-radius: 5px;
+              cursor: pointer;
+              transition: background-color 0.3s;
+            ">Torna alla vista principale</button>
+          `;
+          
+          document.body.appendChild(infoPanel);
+          
+          // Aggiungi event listener per il pulsante
+          document.getElementById('back-to-main').addEventListener('click', () => {
+            if (isZoomed) {
+              // Ripristina i limiti di zoom originali
+              const minDistance = getSafeMinDistance(modelBox, camera);
+              controls.minDistance = 0;
+              controls.maxDistance = minDistance * 1.5;
+              
+              // Riabilita i controlli orbitali
+              controls.enabled = true;
+              
+              // Anima il ritorno alla posizione originale
+              gsap.to(camera.position, {
+                x: originalCameraPosition.x,
+                y: originalCameraPosition.y,
+                z: originalCameraPosition.z,
+                duration: 1,
+                ease: "power2.inOut"
+              });
+              
+              gsap.to(controls.target, {
+                x: originalControlsTarget.x,
+                y: originalControlsTarget.y,
+                z: originalControlsTarget.z,
+                duration: 1,
+                ease: "power2.inOut"
+              });
+              
+              // Nascondi il pannello info
+              hideInfoPanel();
+              
+              isZoomed = false;
+            }
+          });
+        }
+        
+        // Mostra il pannello con animazione
+        setTimeout(() => {
+          infoPanel.style.transform = 'translateX(0)';
+        }, 100);
+      }
+      
+      // Funzione per nascondere il pannello info
+      function hideInfoPanel() {
+        if (infoPanel) {
+          infoPanel.style.transform = 'translateX(100%)';
+        }
+      }
+      
       window.addEventListener('mousemove', onMouseMove);
       window.addEventListener('touchmove', onTouchMove);
-      
-      // Camera setup
-      const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
-      camera.position.set( 10, 10, 10 );
-      
-      // Controls setup
-      const controls = new OrbitControls( camera, renderer.domElement );
-      controls.target.set( 0, 0, 0 );
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
-      controls.enablePan = false;
-      controls.mouseButtons.RIGHT = null;
-      controls.mouseButtons.MIDDLE = null; // opzionale: disabilita anche la rotella
-      controls.update();
+      window.addEventListener('click', onClick);
       
       // Lighting setup
       const ambientLight = new THREE.AmbientLight( 0xffffff, 0.5 );
@@ -101,7 +256,7 @@
       
       let modelBox, modelCenter, modelSize, modelMaxDim, modelDistance;
       
-      loader.load( 'kaizen-era-shop-nft1.glb', function ( gltf ) {
+      loader.load( 'kaizen-era-shop-nft123.glb', function ( gltf ) {
         const model = gltf.scene;
         
         // Find NFT1Undercover object
@@ -142,20 +297,17 @@
         
         // --- CAMERA FRONT VIEW OPTIMIZED ---
         // Calcolo la dimensione massima per vedere tutto il modello
-        const distance = maxDim * 2.5 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+        const distance = maxDim * 2.7 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
         camera.position.set(center.x, center.y, center.z + distance);
         // Calcolo la base del modello (minY della bounding box)
         controls.target.set(center.x, center.y, center.z);
         controls.minPolarAngle = 0;
         controls.maxPolarAngle = Math.PI / 2;
-        // Imposta i limiti di zoom
-        // Puoi modificare questi valori per le tue preferenze:
-        // minDistance: più piccolo = più vicino al modello
-        // maxDistance: più grande = più lontano dal modello
-        const minZoom = distance * 0.835; // Modifica 0.5 per avvicinare di più o meno
-        const maxZoom = distance * 1.1; // Modifica 1.5 per allontanare di più o meno
-        controls.minDistance = minZoom;
-        controls.maxDistance = maxZoom;
+        
+        // Imposta i limiti di zoom iniziali
+        const minDistance = getSafeMinDistance(box, camera);
+        controls.minDistance = 0;
+        controls.maxDistance = minDistance * 1.5;
         controls.update();
         
         animate();
@@ -189,7 +341,7 @@
             // Get camera direction and invert it to move towards camera
             const cameraDirection = new THREE.Vector3();
             camera.getWorldDirection(cameraDirection);
-            cameraDirection.negate(); // Invert the direction
+            cameraDirection.negate();
             
             // Calculate forward position
             const forwardPosition = new THREE.Vector3();
@@ -237,24 +389,20 @@
       // Funzione per impostare camera e limiti zoom in modo responsive
       function setCameraAndZoom() {
         if (!modelBox) return;
-        // Calcola sempre il centro attuale della bounding box
         const center = modelBox.getCenter(new THREE.Vector3());
         modelCenter = center;
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
-        // Usa la distanza minima sicura
         const minDistance = getSafeMinDistance(modelBox, camera);
-        controls.minDistance = minDistance;
-        controls.maxDistance = minDistance * 2;
+        // Imposta solo il limite di zoom out
+        controls.minDistance = 0;
+        controls.maxDistance = minDistance * 3; // Limite solo per lo zoom out
         controls.target.set(center.x, center.y, center.z);
         controls.update();
         modelDistance = minDistance;
-        // Mantieni la camera sempre centrata rispetto al modello
-        // (mantieni la distanza attuale se già > minDistance, altrimenti riposiziona)
         const camDir = new THREE.Vector3();
         camera.getWorldDirection(camDir);
         camDir.normalize();
-        // Posiziona la camera lungo l'asse Z positiva rispetto al centro
         camera.position.set(center.x, center.y, center.z + minDistance * 1.05);
       }
       
