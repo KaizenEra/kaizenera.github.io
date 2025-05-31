@@ -52,12 +52,49 @@
       const raycaster = new THREE.Raycaster();
       const mouse = new THREE.Vector2();
       let hoveredObject = null;
-      let nft1Undercover = null;
-      const originalScale = new THREE.Vector3(1, 1, 1);
-      const originalPosition = new THREE.Vector3();
-      const hoverScale = 1.03; // Reduced scale effect (3% increase)
-      const forwardOffset = 0.1; // How much to move forward
-      const lerpFactor = 0.15; // Slightly faster transition
+      let selectedNFT = null;
+      
+      // NFT objects and their data
+      const nfts = {
+        NFT1Undercover: {
+          name: 'NFT1Undercover',
+          title: 'Undercover Collection',
+          description: 'Un capo unico della collezione Undercover...',
+          features: [
+            'Design esclusivo',
+            'Materiali premium',
+            'Edizione limitata'
+          ]
+        },
+        NFT2KapitalJeans: {
+          name: 'NFT2KapitalJeans',
+          title: 'Kapital Jeans',
+          description: 'Jeans iconici della collezione Kapital...',
+          features: [
+            'Denim artigianale',
+            'Dettagli unici',
+            'Collezione speciale'
+          ]
+        },
+        NFT2KapitalPatched: {
+          name: 'NFT2KapitalPatched',
+          title: 'Kapital Patched',
+          description: 'Un capo patchato unico nel suo genere...',
+          features: [
+            'Patch artigianali',
+            'Design distintivo',
+            'Pezzo unico'
+          ]
+        }
+      };
+
+      // Store references to NFT objects and their original states
+      const nftObjects = {};
+      const originalStates = {};
+      
+      const hoverScale = 1.05;
+      const hoverOffset = 0.06;
+      const lerpFactor = 0.035;
       
       // Camera setup
       const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
@@ -92,35 +129,227 @@
         }
       }
       
+      // Function to animate NFT to hover state
+      function animateToHoverState(nftObject, nftName) {
+        if (!nftObject || !nftName) return;
+        
+        const hoverPosition = new THREE.Vector3(
+          originalStates[nftName].position.x,
+          originalStates[nftName].position.y,
+          originalStates[nftName].position.z + hoverOffset
+        );
+        
+        const hoverScaleVector = new THREE.Vector3(
+          originalStates[nftName].scale.x * hoverScale,
+          originalStates[nftName].scale.y * hoverScale,
+          originalStates[nftName].scale.z * hoverScale
+        );
+        
+        gsap.to(nftObject.position, {
+          x: hoverPosition.x,
+          y: hoverPosition.y,
+          z: hoverPosition.z,
+          duration: 0.3,
+          ease: "power2.out"
+        });
+        
+        gsap.to(nftObject.scale, {
+          x: hoverScaleVector.x,
+          y: hoverScaleVector.y,
+          z: hoverScaleVector.z,
+          duration: 0.3,
+          ease: "power2.out"
+        });
+      }
+
+      // Function to reset NFT to original state
+      function resetNFT(nftObject, nftName) {
+        if (!nftObject || !nftName) return;
+        
+        gsap.to(nftObject.position, {
+          x: originalStates[nftName].position.x,
+          y: originalStates[nftName].position.y,
+          z: originalStates[nftName].position.z,
+          duration: 0.3,
+          ease: "power2.inOut"
+        });
+        
+        gsap.to(nftObject.scale, {
+          x: originalStates[nftName].scale.x,
+          y: originalStates[nftName].scale.y,
+          z: originalStates[nftName].scale.z,
+          duration: 0.3,
+          ease: "power2.inOut"
+        });
+      }
+      
+      // Function to show info panel
+      function showInfoPanel(nftName) {
+        const nftData = nfts[nftName];
+        
+        // Remove existing panel if it exists
+        if (infoPanel) {
+          document.body.removeChild(infoPanel);
+        }
+        
+        // Create new panel
+        infoPanel = document.createElement('div');
+        infoPanel.id = 'info-panel';
+        infoPanel.style.position = 'fixed';
+        infoPanel.style.right = '20px';
+        infoPanel.style.top = '20px';
+        infoPanel.style.width = '300px';
+        infoPanel.style.padding = '20px';
+        infoPanel.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        infoPanel.style.borderRadius = '10px';
+        infoPanel.style.boxShadow = '0 0 10px rgba(0,0,0,0.2)';
+        infoPanel.style.transform = 'translateX(100%)';
+        infoPanel.style.transition = 'transform 0.5s ease';
+        
+        // Create panel content
+        infoPanel.innerHTML = `
+          <h2>${nftData.title}</h2>
+          <p>${nftData.description}</p>
+          <p>Caratteristiche:</p>
+          <ul>
+            ${nftData.features.map(feature => `<li>${feature}</li>`).join('')}
+          </ul>
+          <button id="back-to-main" style="
+            margin-top: 15px;
+            padding: 8px 16px;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+          ">Torna alla vista principale</button>
+        `;
+        
+        document.body.appendChild(infoPanel);
+        
+        // Add event listener for back button
+        const backButton = infoPanel.querySelector('#back-to-main');
+        backButton.addEventListener('click', () => {
+          if (isZoomed) {
+            // Reset selected NFT
+            if (selectedNFT) {
+              const nftName = Object.keys(nftObjects).find(key => nftObjects[key] === selectedNFT);
+              if (nftName) {
+                resetNFT(selectedNFT, nftName);
+              }
+              selectedNFT = null;
+            }
+            
+            // Restore original zoom limits
+            const minDistance = getSafeMinDistance(modelBox, camera);
+            controls.minDistance = 0;
+            controls.maxDistance = minDistance * 1.5;
+            
+            // Re-enable orbital controls
+            controls.enabled = true;
+            
+            // Animate return to original position
+            gsap.to(camera.position, {
+              x: originalCameraPosition.x,
+              y: originalCameraPosition.y,
+              z: originalCameraPosition.z,
+              duration: 1,
+              ease: "power2.inOut"
+            });
+            
+            gsap.to(controls.target, {
+              x: originalControlsTarget.x,
+              y: originalControlsTarget.y,
+              z: originalControlsTarget.z,
+              duration: 1,
+              ease: "power2.inOut"
+            });
+            
+            // Hide info panel
+            hideInfoPanel();
+            
+            isZoomed = false;
+          }
+        });
+        
+        // Show panel with animation
+        requestAnimationFrame(() => {
+          infoPanel.style.transform = 'translateX(0)';
+        });
+      }
+      
+      // Function to hide info panel
+      function hideInfoPanel() {
+        if (infoPanel) {
+          infoPanel.style.transform = 'translateX(100%)';
+          setTimeout(() => {
+            if (infoPanel && infoPanel.parentNode) {
+              document.body.removeChild(infoPanel);
+              infoPanel = null;
+            }
+          }, 500); // Wait for animation to complete
+        }
+      }
+      
       // Click handler
       function onClick(event) {
-        if (nft1Undercover && raycaster.intersectObject(nft1Undercover, true).length > 0) {
+        const intersects = raycaster.intersectObjects(Object.values(nftObjects), true);
+        
+        if (intersects.length > 0) {
+          const clickedNFT = intersects[0].object;
+          const nftName = Object.keys(nftObjects).find(key => nftObjects[key] === clickedNFT);
+          
           if (!isZoomed) {
-            // Salva la posizione originale
+            // Save original camera position
             originalCameraPosition.copy(camera.position);
             originalControlsTarget.copy(controls.target);
             
-            // Calcola la posizione per la vista dettagliata
-            const targetPosition = nft1Undercover.position.clone();
-            const zoomDistance = 2;
+            // Calculate position for detail view
+            const targetPosition = clickedNFT.position.clone();
+            const zoomDistance = 1.7;
             
-            // Anima la camera
+            // Calculate the direction vector from the model center to the NFT
+            const modelCenter = new THREE.Vector3();
+            modelBox.getCenter(modelCenter);
+            const directionToNFT = new THREE.Vector3()
+              .subVectors(targetPosition, modelCenter)
+              .normalize();
+            
+            // Calculate initial camera position with reduced lateral movement
+            const initialDirection = new THREE.Vector3(
+              directionToNFT.x * 0.5,
+              directionToNFT.y,
+              directionToNFT.z
+            ).normalize();
+            
+            const cameraPosition = new THREE.Vector3()
+              .copy(targetPosition)
+              .add(initialDirection.multiplyScalar(zoomDistance));
+            
+            // Set selected NFT and animate to hover state
+            selectedNFT = clickedNFT;
+            animateToHoverState(selectedNFT, nftName);
+            
+            // Show info panel immediately
+            showInfoPanel(nftName);
+            
+            // Animate camera to be perfectly centered in front of the NFT
             gsap.to(camera.position, {
-              x: targetPosition.x,
-              y: targetPosition.y,
-              z: targetPosition.z + zoomDistance,
+              x: cameraPosition.x,
+              y: cameraPosition.y,
+              z: cameraPosition.z,
               duration: 1,
               ease: "power2.inOut",
               onComplete: () => {
-                // Blocca lo zoom out nella vista dettagliata
                 controls.minDistance = zoomDistance;
                 controls.maxDistance = zoomDistance;
-                // Disabilita completamente i controlli orbitali
                 controls.enabled = false;
                 controls.update();
               }
             });
             
+            // Set camera target to be exactly at the NFT's position
             gsap.to(controls.target, {
               x: targetPosition.x,
               y: targetPosition.y,
@@ -129,100 +358,63 @@
               ease: "power2.inOut"
             });
             
-            // Mostra il pannello info
-            showInfoPanel();
-            
             isZoomed = true;
-          }
-        }
-      }
-      
-      // Funzione per mostrare il pannello info
-      function showInfoPanel() {
-        if (!infoPanel) {
-          infoPanel = document.createElement('div');
-          infoPanel.id = 'info-panel';
-          infoPanel.style.position = 'fixed';
-          infoPanel.style.right = '20px';
-          infoPanel.style.top = '20px';
-          infoPanel.style.width = '300px';
-          infoPanel.style.padding = '20px';
-          infoPanel.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-          infoPanel.style.borderRadius = '10px';
-          infoPanel.style.boxShadow = '0 0 10px rgba(0,0,0,0.2)';
-          infoPanel.style.transform = 'translateX(100%)';
-          infoPanel.style.transition = 'transform 0.5s ease';
-          
-          // Aggiungi il contenuto del pannello
-          infoPanel.innerHTML = `
-            <h2>NFT Undercover</h2>
-            <p>Questo è un NFT unico nel suo genere...</p>
-            <p>Caratteristiche:</p>
-            <ul>
-              <li>Caratteristica 1</li>
-              <li>Caratteristica 2</li>
-              <li>Caratteristica 3</li>
-            </ul>
-            <button id="back-to-main" style="
-              margin-top: 15px;
-              padding: 8px 16px;
-              background-color: #2c3e50;
-              color: white;
-              border: none;
-              border-radius: 5px;
-              cursor: pointer;
-              transition: background-color 0.3s;
-            ">Torna alla vista principale</button>
-          `;
-          
-          document.body.appendChild(infoPanel);
-          
-          // Aggiungi event listener per il pulsante
-          document.getElementById('back-to-main').addEventListener('click', () => {
-            if (isZoomed) {
-              // Ripristina i limiti di zoom originali
-              const minDistance = getSafeMinDistance(modelBox, camera);
-              controls.minDistance = 0;
-              controls.maxDistance = minDistance * 1.5;
-              
-              // Riabilita i controlli orbitali
-              controls.enabled = true;
-              
-              // Anima il ritorno alla posizione originale
-              gsap.to(camera.position, {
-                x: originalCameraPosition.x,
-                y: originalCameraPosition.y,
-                z: originalCameraPosition.z,
-                duration: 1,
-                ease: "power2.inOut"
-              });
-              
-              gsap.to(controls.target, {
-                x: originalControlsTarget.x,
-                y: originalControlsTarget.y,
-                z: originalControlsTarget.z,
-                duration: 1,
-                ease: "power2.inOut"
-              });
-              
-              // Nascondi il pannello info
-              hideInfoPanel();
-              
-              isZoomed = false;
+          } else {
+            // If already zoomed, switch to clicked NFT
+            const targetPosition = clickedNFT.position.clone();
+            const zoomDistance = 1.7;
+            
+            // Calculate the direction vector from the model center to the NFT
+            const modelCenter = new THREE.Vector3();
+            modelBox.getCenter(modelCenter);
+            const directionToNFT = new THREE.Vector3()
+              .subVectors(targetPosition, modelCenter)
+              .normalize();
+            
+            // Calculate initial camera position with reduced lateral movement
+            const initialDirection = new THREE.Vector3(
+              directionToNFT.x * 0.5,
+              directionToNFT.y,
+              directionToNFT.z
+            ).normalize();
+            
+            const cameraPosition = new THREE.Vector3()
+              .copy(targetPosition)
+              .add(initialDirection.multiplyScalar(zoomDistance));
+            
+            // Reset previous selected NFT
+            if (selectedNFT) {
+              const prevNftName = Object.keys(nftObjects).find(key => nftObjects[key] === selectedNFT);
+              if (prevNftName) {
+                resetNFT(selectedNFT, prevNftName);
+              }
             }
-          });
-        }
-        
-        // Mostra il pannello con animazione
-        setTimeout(() => {
-          infoPanel.style.transform = 'translateX(0)';
-        }, 100);
-      }
-      
-      // Funzione per nascondere il pannello info
-      function hideInfoPanel() {
-        if (infoPanel) {
-          infoPanel.style.transform = 'translateX(100%)';
+            
+            // Set new selected NFT and animate to hover state
+            selectedNFT = clickedNFT;
+            animateToHoverState(selectedNFT, nftName);
+            
+            // Animate camera to be perfectly centered in front of the NFT
+            gsap.to(camera.position, {
+              x: cameraPosition.x,
+              y: cameraPosition.y,
+              z: cameraPosition.z,
+              duration: 1,
+              ease: "power2.inOut"
+            });
+            
+            // Set camera target to be exactly at the NFT's position
+            gsap.to(controls.target, {
+              x: targetPosition.x,
+              y: targetPosition.y,
+              z: targetPosition.z,
+              duration: 1,
+              ease: "power2.inOut"
+            });
+            
+            // Update info panel for new NFT
+            showInfoPanel(nftName);
+          }
         }
       }
       
@@ -259,13 +451,17 @@
       loader.load( 'kaizen-era-shop-nft123.glb', function ( gltf ) {
         const model = gltf.scene;
         
-        // Find NFT1Undercover object
+        // Find all NFT objects
         model.traverse((child) => {
-          if (child.name === 'NFT1Undercover') {
-            nft1Undercover = child;
-            originalScale.copy(child.scale);
-            originalPosition.copy(child.position);
-          }
+          Object.keys(nfts).forEach(nftName => {
+            if (child.name === nftName) {
+              nftObjects[nftName] = child;
+              originalStates[nftName] = {
+                scale: child.scale.clone(),
+                position: child.position.clone()
+              };
+            }
+          });
         });
         
         // Center the model
@@ -322,55 +518,39 @@
       } );
       
       function animate() {
-        requestAnimationFrame( animate );
+        requestAnimationFrame(animate);
         const delta = clock.getDelta();
-        if (mixer) mixer.update( delta );
+        if (mixer) mixer.update(delta);
         
         // Update raycaster
         raycaster.setFromCamera(mouse, camera);
         
-        // Check for intersections with NFT1Undercover
-        if (nft1Undercover) {
-          const intersects = raycaster.intersectObject(nft1Undercover, true);
+        // Check for intersections with all NFTs
+        Object.entries(nftObjects).forEach(([nftName, nftObject]) => {
+          const intersects = raycaster.intersectObject(nftObject, true);
           
           if (intersects.length > 0) {
-            if (hoveredObject !== nft1Undercover) {
-              hoveredObject = nft1Undercover;
+            if (hoveredObject !== nftObject && nftObject !== selectedNFT) {
+              // Reset previous hovered object if exists
+              if (hoveredObject && hoveredObject !== selectedNFT) {
+                const prevNftName = Object.keys(nftObjects).find(key => nftObjects[key] === hoveredObject);
+                if (prevNftName) {
+                  resetNFT(hoveredObject, prevNftName);
+                }
+              }
+              hoveredObject = nftObject;
+              animateToHoverState(nftObject, nftName);
             }
-            
-            // Get camera direction and invert it to move towards camera
-            const cameraDirection = new THREE.Vector3();
-            camera.getWorldDirection(cameraDirection);
-            cameraDirection.negate();
-            
-            // Calculate forward position
-            const forwardPosition = new THREE.Vector3();
-            forwardPosition.copy(originalPosition).add(cameraDirection.multiplyScalar(forwardOffset));
-            
-            // Smoothly scale up and move forward
-            nft1Undercover.scale.lerp(
-              new THREE.Vector3(
-                originalScale.x * hoverScale,
-                originalScale.y * hoverScale,
-                originalScale.z * hoverScale
-              ),
-              lerpFactor
-            );
-            
-            // Smoothly move forward
-            nft1Undercover.position.lerp(forwardPosition, lerpFactor);
           } else {
-            if (hoveredObject === nft1Undercover) {
+            if (hoveredObject === nftObject && nftObject !== selectedNFT) {
               hoveredObject = null;
+              resetNFT(nftObject, nftName);
             }
-            // Smoothly return to original scale and position
-            nft1Undercover.scale.lerp(originalScale, lerpFactor);
-            nft1Undercover.position.lerp(originalPosition, lerpFactor);
           }
-        }
+        });
         
         controls.update();
-        renderer.render( scene, camera );
+        renderer.render(scene, camera);
       }
       
       // Funzione per calcolare la distanza minima sicura per vedere tutto il modello anche ruotando
