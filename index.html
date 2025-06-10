@@ -110,6 +110,22 @@
       controls.mouseButtons.MIDDLE = null;
       controls.update();
       
+      // Add zoom event handler
+      const detailViewDistance = 1.7;
+      controls.addEventListener('change', function() {
+        const currentDistance = camera.position.distanceTo(controls.target);
+        if (currentDistance < detailViewDistance) {
+          // Calculate direction from target to camera
+          const direction = new THREE.Vector3()
+            .subVectors(camera.position, controls.target)
+            .normalize();
+          
+          // Set new camera position at minimum distance
+          camera.position.copy(controls.target)
+            .add(direction.multiplyScalar(detailViewDistance));
+        }
+      });
+      
       let isZoomed = false;
       let originalCameraPosition = new THREE.Vector3();
       let originalControlsTarget = new THREE.Vector3();
@@ -433,6 +449,10 @@
       
       const dracoLoader = new DRACOLoader();
       dracoLoader.setDecoderPath( './' );
+      dracoLoader.setDecoderConfig({ type: 'js' });
+      dracoLoader.onError = function(error) {
+        console.error('Draco decoder error:', error);
+      };
       const loader = new GLTFLoader();
       loader.setDRACOLoader( dracoLoader );
       
@@ -440,15 +460,41 @@
       const loadingManager = new THREE.LoadingManager();
       loadingManager.onProgress = function ( url, itemsLoaded, itemsTotal ) {
         console.log( 'Loading file: ' + url + '.\nLoaded ' + itemsLoaded + ' of ' + itemsTotal + ' files.' );
+        // Update loading progress
+        const progress = (itemsLoaded / itemsTotal) * 100;
+        if (loadingElement) {
+          loadingElement.textContent = `Loading: ${Math.round(progress)}%`;
+        }
       };
       loadingManager.onError = function ( url ) {
         console.log( 'There was an error loading ' + url );
+        if (loadingElement) {
+          loadingElement.textContent = 'Error loading model. Please refresh the page.';
+          loadingElement.style.color = 'red';
+        }
       };
       loader.manager = loadingManager;
+      
+      // Add loading element
+      const loadingElement = document.createElement('div');
+      loadingElement.style.position = 'fixed';
+      loadingElement.style.top = '50%';
+      loadingElement.style.left = '50%';
+      loadingElement.style.transform = 'translate(-50%, -50%)';
+      loadingElement.style.color = 'white';
+      loadingElement.style.fontSize = '24px';
+      loadingElement.style.fontFamily = 'Arial, sans-serif';
+      loadingElement.style.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
+      loadingElement.textContent = 'Loading model...';
+      document.body.appendChild(loadingElement);
       
       let modelBox, modelCenter, modelSize, modelMaxDim, modelDistance;
       
       loader.load( 'kaizen-era-shop-nft123.glb', function ( gltf ) {
+        // Remove loading element when model is loaded
+        if (loadingElement && loadingElement.parentNode) {
+          loadingElement.parentNode.removeChild(loadingElement);
+        }
         const model = gltf.scene;
         
         // Find all NFT objects
@@ -498,7 +544,7 @@
         // Calcolo la base del modello (minY della bounding box)
         controls.target.set(center.x, center.y, center.z);
         controls.minPolarAngle = 0;
-        controls.maxPolarAngle = Math.PI / 2;
+        controls.maxPolarAngle = Math.PI / 1.9;
         
         // Imposta i limiti di zoom iniziali
         const minDistance = getSafeMinDistance(box, camera);
