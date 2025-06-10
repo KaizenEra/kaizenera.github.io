@@ -234,12 +234,6 @@
         }
         infoPanel = document.createElement('div');
         infoPanel.id = 'info-panel';
-        let isFullscreen = false;
-        let startY = null;
-        let currentY = null;
-        let initialHeight = 0.22; // 22% di default, più basso
-        let minHeight = 0.22;
-        let maxHeight = 1.0;
         // Responsive: stile diverso su mobile
         if (isMobile()) {
           infoPanel.style.position = 'fixed';
@@ -249,49 +243,16 @@
           infoPanel.style.top = '';
           infoPanel.style.width = '100vw';
           infoPanel.style.maxWidth = '100vw';
-          infoPanel.style.height = (window.innerHeight * initialHeight) + 'px';
+          infoPanel.style.height = (window.innerHeight * 0.22) + 'px'; // fisso, non espandibile
           infoPanel.style.padding = '20px 10px 30px 10px';
           infoPanel.style.backgroundColor = 'rgba(255,255,255,0.97)';
           infoPanel.style.borderRadius = '20px 20px 0 0';
           infoPanel.style.boxShadow = '0 -2px 16px rgba(0,0,0,0.18)';
           infoPanel.style.transform = 'translateY(100%)';
-          infoPanel.style.transition = 'transform 0.5s cubic-bezier(.4,1.6,.4,1), height 0.4s cubic-bezier(.4,1.6,.4,1)';
+          infoPanel.style.transition = 'transform 0.5s cubic-bezier(.4,1.6,.4,1)';
           infoPanel.style.overflowY = 'auto';
-          infoPanel.style.touchAction = 'none';
+          infoPanel.style.touchAction = 'auto';
           lockBodyScroll();
-          infoPanel.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-              startY = e.touches[0].clientY;
-              currentY = startY;
-            }
-          });
-          infoPanel.addEventListener('touchmove', (e) => {
-            if (startY !== null && e.touches.length === 1) {
-              currentY = e.touches[0].clientY;
-            }
-          });
-          infoPanel.addEventListener('touchend', (e) => {
-            if (startY !== null && currentY !== null) {
-              const deltaY = currentY - startY;
-              if (Math.abs(deltaY) > 40) {
-                if (deltaY < 0) {
-                  infoPanel.style.height = window.innerHeight + 'px';
-                  isFullscreen = true;
-                } else {
-                  infoPanel.style.height = (window.innerHeight * initialHeight) + 'px';
-                  isFullscreen = false;
-                }
-              }
-              startY = null;
-              currentY = null;
-            }
-          });
-          infoPanel.addEventListener('scroll', () => {
-            if (infoPanel.scrollTop === 0 && isFullscreen) {
-              infoPanel.style.height = (window.innerHeight * initialHeight) + 'px';
-              isFullscreen = false;
-            }
-          });
         } else {
           infoPanel.style.position = 'fixed';
           infoPanel.style.right = '20px';
