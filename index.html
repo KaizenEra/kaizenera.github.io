@@ -435,9 +435,46 @@
         }
       }
       
+      // Touch start handler per simulare hover su mobile
+      function onTouchStartNFT(event) {
+        if (event.touches.length === 1) {
+          // Calcola coordinate normalizzate
+          const touch = event.touches[0];
+          mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
+          mouse.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+          // Raycast sugli NFT
+          const intersects = raycaster.intersectObjects(Object.values(nftObjects), true);
+          if (intersects.length > 0) {
+            const hoveredNFT = intersects[0].object;
+            const nftName = Object.keys(nftObjects).find(key => nftObjects[key] === hoveredNFT);
+            if (hoveredObject !== hoveredNFT && hoveredNFT !== selectedNFT) {
+              if (hoveredObject && hoveredObject !== selectedNFT) {
+                const prevNftName = Object.keys(nftObjects).find(key => nftObjects[key] === hoveredObject);
+                if (prevNftName) {
+                  resetNFT(hoveredObject, prevNftName);
+                }
+              }
+              hoveredObject = hoveredNFT;
+              animateToHoverState(hoveredNFT, nftName);
+            }
+          }
+        }
+      }
+
+      // Touch end handler per simulare click su mobile
+      function onTouchEndNFT(event) {
+        // Simula click solo se era in hover
+        if (hoveredObject) {
+          // Simula click
+          onClick(event);
+        }
+      }
+
       window.addEventListener('mousemove', onMouseMove);
       window.addEventListener('touchmove', onTouchMove);
       window.addEventListener('click', onClick);
+      window.addEventListener('touchstart', onTouchStartNFT);
+      window.addEventListener('touchend', onTouchEndNFT);
       
       // Lighting setup
       const ambientLight = new THREE.AmbientLight( 0xffffff, 0.5 );
