@@ -31,29 +31,19 @@
         right: 0;
         bottom: 0;
         width: 100vw;
-        min-height: 20vh;
-        max-height: 100vh;
+        height: 40vh;
         background: rgba(255,255,255,0.97);
         border-radius: 24px 24px 0 0;
         box-shadow: 0 -8px 32px rgba(0,0,0,0.22);
-        transition: min-height 0.4s cubic-bezier(.4,1.6,.4,1), max-height 0.4s cubic-bezier(.4,1.6,.4,1);
         overflow: hidden;
         z-index: 10;
         display: flex;
         flex-direction: column;
       }
-      .drag-handle {
-        width: 40px;
-        height: 5px;
-        background: #bbb;
-        border-radius: 3px;
-        margin: 10px auto 8px auto;
-      }
       .info-content {
         padding: 0 10px 30px 10px;
-        overflow-y: hidden;
+        overflow-y: auto;
         height: 100%;
-        transition: max-height 0.4s cubic-bezier(.4,1.6,.4,1);
       }
       .section-title {
         font-size: 1.2em;
@@ -91,8 +81,7 @@
       @media (min-width: 700px) {
         #info-panel {
           width: 340px;
-          min-height: 200px;
-          max-height: 90vh;
+          height: 90vh;
           left: auto;
           right: 20px;
           top: 20px;
@@ -309,10 +298,6 @@
           { label: 'Total Transfers', value: '4' },
           { label: 'Blockchain', value: 'Ethereum' }
         ];
-        // --- Drag handle ---
-        const dragHandle = document.createElement('div');
-        dragHandle.className = 'drag-handle';
-        infoPanel.appendChild(dragHandle);
         // --- Contenuto scrollabile ---
         const content = document.createElement('div');
         content.className = 'info-content';
@@ -342,50 +327,6 @@
         `;
         infoPanel.appendChild(content);
         document.body.appendChild(infoPanel);
-        // --- Gestione drag/swipe per espansione ---
-        if (isMobile()) {
-          let minHeight = window.innerHeight * 0.20;
-          let maxHeight = window.innerHeight;
-          let currentHeight = minHeight;
-          let isFullscreen = false;
-          let startY = null;
-          let startHeight = null;
-          let isDragging = false;
-          dragHandle.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-              startY = e.touches[0].clientY;
-              startHeight = currentHeight;
-              isDragging = true;
-            }
-          });
-          window.addEventListener('touchmove', (e) => {
-            if (isDragging && e.touches.length === 1) {
-              const delta = startY - e.touches[0].clientY;
-              let newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + delta));
-              infoPanel.style.minHeight = newHeight + 'px';
-              infoPanel.style.maxHeight = newHeight + 'px';
-              currentHeight = newHeight;
-            }
-          });
-          window.addEventListener('touchend', () => {
-            if (isDragging) {
-              // Snap
-              if (currentHeight > (minHeight + maxHeight) / 2) {
-                infoPanel.style.minHeight = maxHeight + 'px';
-                infoPanel.style.maxHeight = maxHeight + 'px';
-                isFullscreen = true;
-                content.style.overflowY = 'auto';
-              } else {
-                infoPanel.style.minHeight = minHeight + 'px';
-                infoPanel.style.maxHeight = minHeight + 'px';
-                isFullscreen = false;
-                content.scrollTop = 0;
-                content.style.overflowY = 'hidden';
-              }
-              isDragging = false;
-            }
-          });
-        }
       }
       
       // Function to hide info panel
