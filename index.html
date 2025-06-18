@@ -78,6 +78,35 @@
         background: #eee;
         margin-bottom: 8px;
       }
+      .back-button {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 100;
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        cursor: pointer;
+        font-size: 16px;
+        display: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+      .preorder-button {
+        background: #000;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-size: 16px;
+        cursor: pointer;
+        margin-top: 20px;
+        transition: all 0.3s ease;
+      }
+      .preorder-button:hover {
+        background: #333;
+        transform: translateY(-2px);
+      }
       @media (min-width: 700px) {
         #info-panel {
           width: 340px;
@@ -93,6 +122,7 @@
   </head>
   <body>
     <div id="container"></div>
+    <button class="back-button" id="backButton">Torna alla vista principale</button>
     <script type="module">
       import * as THREE from './three.module.js';
       import { OrbitControls } from './OrbitControls.js';
@@ -324,57 +354,11 @@
           <hr/>
           <div class="section-title">Altre info</div>
           <p>Questa sezione può contenere ulteriori dettagli, link, documentazione, ecc.</p>
-          <button id="back-to-main" style="
-            margin: 20px auto 0 auto;
-            display: block;
-            padding: 10px 24px;
-            background-color: #2c3e50;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1em;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: background 0.3s;
-          ">Torna alla vista principale</button>
+          <button class="preorder-button" onclick="handlePreorder('${nftData.name}')">Preordina ora</button>
         `;
         infoPanel.appendChild(content);
         document.body.appendChild(infoPanel);
-        // Pulsante back
-        const backButton = content.querySelector('#back-to-main');
-        backButton.onclick = () => {
-          if (isZoomed) {
-            if (selectedNFT) {
-              const nftName = Object.keys(nftObjects).find(key => nftObjects[key] === selectedNFT);
-              if (nftName) {
-                resetNFT(selectedNFT, nftName);
-              }
-              selectedNFT = null;
-            }
-            const minDistance = getSafeMinDistance(modelBox, camera);
-            controls.minDistance = 0;
-            controls.maxDistance = minDistance * 1.5;
-            controls.enabled = true;
-            gsap.to(camera.position, {
-              x: originalCameraPosition.x,
-              y: originalCameraPosition.y,
-              z: originalCameraPosition.z,
-              duration: 1,
-              ease: "power2.inOut"
-            });
-            gsap.to(controls.target, {
-              x: originalControlsTarget.x,
-              y: originalControlsTarget.y,
-              z: originalControlsTarget.z,
-              duration: 1,
-              ease: "power2.inOut"
-            });
-            document.body.removeChild(infoPanel);
-            isZoomed = false;
-          } else {
-            document.body.removeChild(infoPanel);
-          }
-        };
+        document.querySelector('.back-button').style.display = 'block';
       }
       
       // Function to hide info panel
@@ -722,6 +706,73 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         setCameraAndZoom();
       });
+
+      // Function to handle preorder
+      window.handlePreorder = function(nftName) {
+        fetch("https://kaizenera-stripe-backend.onrender.com/create-checkout-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            item: {
+              price_data: {
+                currency: "eur",
+                product_data: {
+                  name: `${nfts[nftName].title} - Preorder`
+                },
+                unit_amount: 4900 // 49,00 €
+              },
+              quantity: 1
+            }
+          })
+        })
+        .then(res => res.json())
+        .then(data => window.location.href = data.url);
+      };
+
+      // Make hideNFTDetails available globally
+      window.hideNFTDetails = function() {
+        if (isZoomed) {
+          if (selectedNFT) {
+            const nftName = Object.keys(nftObjects).find(key => nftObjects[key] === selectedNFT);
+            if (nftName) {
+              resetNFT(selectedNFT, nftName);
+            }
+            selectedNFT = null;
+          }
+          const minDistance = getSafeMinDistance(modelBox, camera);
+          controls.minDistance = 0;
+          controls.maxDistance = minDistance * 1.5;
+          controls.enabled = true;
+          gsap.to(camera.position, {
+            x: originalCameraPosition.x,
+            y: originalCameraPosition.y,
+            z: originalCameraPosition.z,
+            duration: 1,
+            ease: "power2.inOut"
+          });
+          gsap.to(controls.target, {
+            x: originalControlsTarget.x,
+            y: originalControlsTarget.y,
+            z: originalControlsTarget.z,
+            duration: 1,
+            ease: "power2.inOut"
+          });
+          const infoPanel = document.getElementById('info-panel');
+          if (infoPanel) {
+            document.body.removeChild(infoPanel);
+          }
+          isZoomed = false;
+        } else {
+          const infoPanel = document.getElementById('info-panel');
+          if (infoPanel) {
+            document.body.removeChild(infoPanel);
+          }
+        }
+        document.querySelector('.back-button').style.display = 'none';
+      };
+
+      // Add click handler for back button
+      document.getElementById('backButton').addEventListener('click', window.hideNFTDetails);
     </script>
   </body>
 </html>
