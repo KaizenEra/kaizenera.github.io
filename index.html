@@ -12,49 +12,39 @@
     <style>
       html, body {
         width: 100vw;
-        height: 100vh;
+        min-height: 100vh;
         margin: 0;
         padding: 0;
-        overflow: hidden;
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-      }
-      body {
         background-color: #bfe3dd;
         color: #000;
+        overflow-x: hidden;
+      }
+      #container {
+        width: 100vw;
+        height: 100vh;
+        position: relative;
+        z-index: 1;
       }
       #info-panel {
-        font-family: Arial, sans-serif;
-        color: #333;
-        overflow: hidden !important;
-        -webkit-overflow-scrolling: touch;
-        display: flex;
-        flex-direction: column;
-        transition: height 0.5s cubic-bezier(.4,1.6,.4,1);
-      }
-      .slide-container {
-        width: 100%;
-        height: 100%;
-        position: relative;
+        width: 100vw;
+        min-height: 20vh;
+        max-height: 100vh;
+        margin: 0 auto;
+        background: rgba(255,255,255,0.97);
+        border-radius: 24px 24px 0 0;
+        box-shadow: 0 -8px 32px rgba(0,0,0,0.22);
+        transition: min-height 0.5s cubic-bezier(.4,1.6,.4,1), max-height 0.5s cubic-bezier(.4,1.6,.4,1);
         overflow: hidden;
-      }
-      .slide {
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        top: 0; left: 0;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.5s;
+        position: relative;
+        z-index: 2;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
       }
-      .slide.active {
-        opacity: 1;
-        pointer-events: auto;
-        z-index: 2;
+      .info-content {
+        padding: 20px 10px 30px 10px;
+        overflow-y: auto;
+        height: 100%;
+        transition: max-height 0.5s cubic-bezier(.4,1.6,.4,1);
       }
       .section-title {
         font-size: 1.2em;
@@ -66,7 +56,7 @@
         flex-direction: row;
         gap: 24px;
         width: 100vw;
-        overflow: hidden;
+        overflow-x: auto;
         align-items: center;
         justify-content: flex-start;
         position: relative;
@@ -89,21 +79,16 @@
         background: #eee;
         margin-bottom: 8px;
       }
-      .section-indicator {
-        display: flex;
-        justify-content: center;
-        gap: 8px;
-        margin: 8px 0 0 0;
-      }
-      .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #bbb;
-        transition: background 0.3s;
-      }
-      .dot.active {
-        background: #2c3e50;
+      @media (min-width: 700px) {
+        #info-panel {
+          width: 340px;
+          min-height: 200px;
+          max-height: 90vh;
+          position: fixed;
+          right: 20px;
+          top: 20px;
+          border-radius: 10px;
+        }
       }
     </style>
   </head>
@@ -300,10 +285,6 @@
         }
         infoPanel = document.createElement('div');
         infoPanel.id = 'info-panel';
-        let minHeight = window.innerHeight * 0.22;
-        let maxHeight = window.innerHeight;
-        let currentHeight = minHeight;
-        let isFullscreen = false;
         // Dummy blockchain data
         const owners = [
           { name: 'Fabio', avatar: '', date: '2024-01-01', tx: '0x1234...abcd' },
@@ -318,183 +299,56 @@
           { label: 'Total Transfers', value: '4' },
           { label: 'Blockchain', value: 'Ethereum' }
         ];
-        if (isMobile()) {
-          infoPanel.style.position = 'fixed';
-          infoPanel.style.left = '0';
-          infoPanel.style.right = '0';
-          infoPanel.style.bottom = '0';
-          infoPanel.style.top = '';
-          infoPanel.style.width = '100vw';
-          infoPanel.style.maxWidth = '100vw';
-          infoPanel.style.height = minHeight + 'px';
-          infoPanel.style.padding = '0';
-          infoPanel.style.backgroundColor = 'rgba(255,255,255,0.97)';
-          infoPanel.style.borderRadius = '20px 20px 0 0';
-          infoPanel.style.boxShadow = '0 -2px 16px rgba(0,0,0,0.18)';
-          infoPanel.style.transform = 'translateY(100%)';
-          infoPanel.style.transition = 'transform 0.5s cubic-bezier(.4,1.6,.4,1), height 0.4s cubic-bezier(.4,1.6,.4,1)';
-          infoPanel.style.overflow = 'hidden';
-          infoPanel.style.display = 'flex';
-          infoPanel.style.flexDirection = 'column';
-          lockBodyScroll();
-          // --- Drag handle ---
-          const dragHandle = document.createElement('div');
-          dragHandle.style.width = '40px';
-          dragHandle.style.height = '5px';
-          dragHandle.style.background = '#bbb';
-          dragHandle.style.borderRadius = '3px';
-          dragHandle.style.margin = '10px auto 8px auto';
-          infoPanel.appendChild(dragHandle);
-          // --- Contenuto scrollabile ---
-          const content = document.createElement('div');
-          content.className = 'info-content';
-          content.style.height = (minHeight - 25) + 'px';
-          content.style.overflowY = 'hidden';
-          content.style.transition = 'height 0.4s cubic-bezier(.4,1.6,.4,1)';
-          content.innerHTML = `
-            <div class="section-title">${nftData.title}</div>
-            <p>${nftData.description}</p>
-            <p>Caratteristiche:</p>
-            <ul>${nftData.features.map(feature => `<li>${feature}</li>`).join('')}</ul>
-            <hr/>
-            <div class="section-title">Provenienza Blockchain</div>
-            <div class="roadmap-owners">
-              ${owners.map(owner => `
-                <div class="owner-card">
-                  <div class="owner-avatar"></div>
-                  <div style="font-weight:bold;">${owner.name}</div>
-                  <div style="font-size:0.8em; color:#888;">${owner.date}</div>
-                  <div style="font-size:0.7em; color:#2c3e50; margin-top:4px;">${owner.tx}</div>
-                </div>
-              `).join('')}
-            </div>
-            <hr/>
-            <div class="section-title">Statistiche NFT</div>
-            <ul>${stats.map(stat => `<li><b>${stat.label}:</b> ${stat.value}</li>`).join('')}</ul>
-            <hr/>
-            <div class="section-title">Altre info</div>
-            <p>Questa sezione può contenere ulteriori dettagli, link, documentazione, ecc.</p>
-          `;
-          infoPanel.appendChild(content);
-          // --- Gestione drag/swipe per espansione ---
-          let startY = null;
-          let startHeight = null;
-          let isDragging = false;
-          dragHandle.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-              startY = e.touches[0].clientY;
-              startHeight = currentHeight;
-              isDragging = true;
-            }
-          });
-          window.addEventListener('touchmove', (e) => {
-            if (isDragging && e.touches.length === 1) {
-              const delta = startY - e.touches[0].clientY;
-              let newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + delta));
-              infoPanel.style.height = newHeight + 'px';
-              content.style.height = (newHeight - 25) + 'px';
-              currentHeight = newHeight;
-            }
-          });
-          window.addEventListener('touchend', () => {
-            if (isDragging) {
-              // Snap
-              if (currentHeight > (minHeight + maxHeight) / 2) {
-                infoPanel.style.height = maxHeight + 'px';
-                content.style.height = (maxHeight - 25) + 'px';
-                isFullscreen = true;
-                content.style.overflowY = 'auto';
-              } else {
-                infoPanel.style.height = minHeight + 'px';
-                content.style.height = (minHeight - 25) + 'px';
-                isFullscreen = false;
-                content.scrollTop = 0;
-                content.style.overflowY = 'hidden';
-              }
-              isDragging = false;
-            }
-          });
-        } else {
-          // Desktop: stile classico
-          infoPanel.style.position = 'fixed';
-          infoPanel.style.right = '20px';
-          infoPanel.style.top = '20px';
-          infoPanel.style.width = '340px';
-          infoPanel.style.padding = '20px';
-          infoPanel.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-          infoPanel.style.borderRadius = '10px';
-          infoPanel.style.boxShadow = '0 0 10px rgba(0,0,0,0.2)';
-          infoPanel.style.transform = 'translateX(100%)';
-          infoPanel.style.transition = 'transform 0.5s ease';
-          infoPanel.innerHTML = `
-            <h2>${nftData.title}</h2>
-            <p>${nftData.description}</p>
-            <p>Caratteristiche:</p>
-            <ul>${nftData.features.map(feature => `<li>${feature}</li>`).join('')}</ul>
-            <hr/>
-            <div style="font-weight:bold; margin-top:10px;">Provenienza Blockchain</div>
-            <ul>${owners.map(owner => `<li>${owner.name} (${owner.date})<br><span style='font-size:0.8em;color:#888;'>${owner.tx}</span></li>`).join('')}</ul>
-            <hr/>
-            <div style="font-weight:bold; margin-top:10px;">Statistiche NFT</div>
-            <ul>${stats.map(stat => `<li>${stat.label}: <b>${stat.value}</b></li>`).join('')}</ul>
-            <hr/>
-            <div style="font-weight:bold; margin-top:10px;">Altre info</div>
-            <p>Questa sezione può contenere ulteriori dettagli, link, documentazione, ecc.</p>
-          `;
-        }
-        // Bottone chiusura/torna
-        const backButton = document.createElement('button');
-        backButton.textContent = 'Torna alla vista principale';
-        backButton.style.marginTop = '15px';
-        backButton.style.padding = '8px 16px';
-        backButton.style.backgroundColor = '#2c3e50';
-        backButton.style.color = 'white';
-        backButton.style.border = 'none';
-        backButton.style.borderRadius = '5px';
-        backButton.style.cursor = 'pointer';
-        backButton.style.transition = 'background-color 0.3s';
-        backButton.onclick = () => {
-          if (isZoomed) {
-            if (selectedNFT) {
-              const nftName = Object.keys(nftObjects).find(key => nftObjects[key] === selectedNFT);
-              if (nftName) {
-                resetNFT(selectedNFT, nftName);
-              }
-              selectedNFT = null;
-            }
-            const minDistance = getSafeMinDistance(modelBox, camera);
-            controls.minDistance = 0;
-            controls.maxDistance = minDistance * 1.5;
-            controls.enabled = true;
-            gsap.to(camera.position, {
-              x: originalCameraPosition.x,
-              y: originalCameraPosition.y,
-              z: originalCameraPosition.z,
-              duration: 1,
-              ease: "power2.inOut"
-            });
-            gsap.to(controls.target, {
-              x: originalControlsTarget.x,
-              y: originalControlsTarget.y,
-              z: originalControlsTarget.z,
-              duration: 1,
-              ease: "power2.inOut"
-            });
-            hideInfoPanel();
-            isZoomed = false;
-          } else {
-            hideInfoPanel();
-          }
-        };
-        infoPanel.appendChild(backButton);
+        // --- Contenuto scrollabile ---
+        const content = document.createElement('div');
+        content.className = 'info-content';
+        content.innerHTML = `
+          <div class="section-title">${nftData.title}</div>
+          <p>${nftData.description}</p>
+          <p>Caratteristiche:</p>
+          <ul>${nftData.features.map(feature => `<li>${feature}</li>`).join('')}</ul>
+          <hr/>
+          <div class="section-title">Provenienza Blockchain</div>
+          <div class="roadmap-owners">
+            ${owners.map(owner => `
+              <div class="owner-card">
+                <div class="owner-avatar"></div>
+                <div style="font-weight:bold;">${owner.name}</div>
+                <div style="font-size:0.8em; color:#888;">${owner.date}</div>
+                <div style="font-size:0.7em; color:#2c3e50; margin-top:4px;">${owner.tx}</div>
+              </div>
+            `).join('')}
+          </div>
+          <hr/>
+          <div class="section-title">Statistiche NFT</div>
+          <ul>${stats.map(stat => `<li><b>${stat.label}:</b> ${stat.value}</li>`).join('')}</ul>
+          <hr/>
+          <div class="section-title">Altre info</div>
+          <p>Questa sezione può contenere ulteriori dettagli, link, documentazione, ecc.</p>
+        `;
+        infoPanel.appendChild(content);
         document.body.appendChild(infoPanel);
-        requestAnimationFrame(() => {
-          if (isMobile()) {
-            infoPanel.style.transform = 'translateY(0)';
-          } else {
-            infoPanel.style.transform = 'translateX(0)';
+        // --- Espansione progressiva con scroll ---
+        if (isMobile()) {
+          window.addEventListener('scroll', handlePanelExpand);
+          function handlePanelExpand() {
+            const rect = infoPanel.getBoundingClientRect();
+            const scrollY = window.scrollY || window.pageYOffset;
+            // Quando il pannello entra in viewport, espandi progressivamente
+            if (rect.top < window.innerHeight * 0.5) {
+              infoPanel.style.minHeight = '100vh';
+              infoPanel.style.maxHeight = '100vh';
+              content.style.overflowY = 'auto';
+            } else {
+              infoPanel.style.minHeight = '20vh';
+              infoPanel.style.maxHeight = '100vh';
+              content.style.overflowY = 'hidden';
+              content.scrollTop = 0;
+            }
           }
-        });
+          // Trigger iniziale
+          handlePanelExpand();
+        }
       }
       
       // Function to hide info panel
