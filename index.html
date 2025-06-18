@@ -300,10 +300,10 @@
         }
         infoPanel = document.createElement('div');
         infoPanel.id = 'info-panel';
-        let panelHeight = window.innerHeight * 0.22;
-        let expandedHeight = window.innerHeight;
-        let isExpanded = false;
-        let currentSlide = 0;
+        let minHeight = window.innerHeight * 0.22;
+        let maxHeight = window.innerHeight;
+        let currentHeight = minHeight;
+        let isFullscreen = false;
         // Dummy blockchain data
         const owners = [
           { name: 'Fabio', avatar: '', date: '2024-01-01', tx: '0x1234...abcd' },
@@ -311,7 +311,6 @@
           { name: 'Bob', avatar: '', date: '2024-03-10', tx: '0x3456...cdef' },
           { name: 'Eve', avatar: '', date: '2024-04-01', tx: '0x4567...def0' }
         ];
-        // Dummy stats
         const stats = [
           { label: 'Rarity', value: 'Ultra Rare' },
           { label: 'Minted', value: '2023-12-01' },
@@ -327,131 +326,94 @@
           infoPanel.style.top = '';
           infoPanel.style.width = '100vw';
           infoPanel.style.maxWidth = '100vw';
-          infoPanel.style.height = panelHeight + 'px';
+          infoPanel.style.height = minHeight + 'px';
           infoPanel.style.padding = '0';
           infoPanel.style.backgroundColor = 'rgba(255,255,255,0.97)';
           infoPanel.style.borderRadius = '20px 20px 0 0';
           infoPanel.style.boxShadow = '0 -2px 16px rgba(0,0,0,0.18)';
           infoPanel.style.transform = 'translateY(100%)';
-          infoPanel.style.transition = 'transform 0.5s cubic-bezier(.4,1.6,.4,1), height 0.5s cubic-bezier(.4,1.6,.4,1)';
+          infoPanel.style.transition = 'transform 0.5s cubic-bezier(.4,1.6,.4,1), height 0.4s cubic-bezier(.4,1.6,.4,1)';
           infoPanel.style.overflow = 'hidden';
           infoPanel.style.display = 'flex';
           infoPanel.style.flexDirection = 'column';
           lockBodyScroll();
-          // --- Slide container ---
-          const slideContainer = document.createElement('div');
-          slideContainer.className = 'slide-container';
-          slideContainer.style.height = '100%';
-          slideContainer.style.width = '100%';
-          // --- Slide 0: Info capo ---
-          const slide0 = document.createElement('div');
-          slide0.className = 'slide slide-0 active';
-          slide0.innerHTML = `
+          // --- Drag handle ---
+          const dragHandle = document.createElement('div');
+          dragHandle.style.width = '40px';
+          dragHandle.style.height = '5px';
+          dragHandle.style.background = '#bbb';
+          dragHandle.style.borderRadius = '3px';
+          dragHandle.style.margin = '10px auto 8px auto';
+          infoPanel.appendChild(dragHandle);
+          // --- Contenuto scrollabile ---
+          const content = document.createElement('div');
+          content.className = 'info-content';
+          content.style.height = (minHeight - 25) + 'px';
+          content.style.overflowY = 'hidden';
+          content.style.transition = 'height 0.4s cubic-bezier(.4,1.6,.4,1)';
+          content.innerHTML = `
             <div class="section-title">${nftData.title}</div>
             <p>${nftData.description}</p>
             <p>Caratteristiche:</p>
             <ul>${nftData.features.map(feature => `<li>${feature}</li>`).join('')}</ul>
-          `;
-          // --- Slide 1: Ownership (blockchain) ---
-          const slide1 = document.createElement('div');
-          slide1.className = 'slide slide-1';
-          slide1.innerHTML = `
+            <hr/>
             <div class="section-title">Provenienza Blockchain</div>
-            <div class="roadmap-owners" id="roadmap-owners"></div>
-          `;
-          // --- Slide 2: Statistiche NFT ---
-          const slide2 = document.createElement('div');
-          slide2.className = 'slide slide-2';
-          slide2.innerHTML = `
+            <div class="roadmap-owners">
+              ${owners.map(owner => `
+                <div class="owner-card">
+                  <div class="owner-avatar"></div>
+                  <div style="font-weight:bold;">${owner.name}</div>
+                  <div style="font-size:0.8em; color:#888;">${owner.date}</div>
+                  <div style="font-size:0.7em; color:#2c3e50; margin-top:4px;">${owner.tx}</div>
+                </div>
+              `).join('')}
+            </div>
+            <hr/>
             <div class="section-title">Statistiche NFT</div>
             <ul>${stats.map(stat => `<li><b>${stat.label}:</b> ${stat.value}</li>`).join('')}</ul>
-          `;
-          // --- Slide 3: Altre info ---
-          const slide3 = document.createElement('div');
-          slide3.className = 'slide slide-3';
-          slide3.innerHTML = `
+            <hr/>
             <div class="section-title">Altre info</div>
             <p>Questa sezione può contenere ulteriori dettagli, link, documentazione, ecc.</p>
           `;
-          // --- Aggiungi slide ---
-          slideContainer.appendChild(slide0);
-          slideContainer.appendChild(slide1);
-          slideContainer.appendChild(slide2);
-          slideContainer.appendChild(slide3);
-          infoPanel.appendChild(slideContainer);
-          // --- Indicatori sezione ---
-          const indicator = document.createElement('div');
-          indicator.className = 'section-indicator';
-          indicator.innerHTML = '<div class="dot active"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>';
-          infoPanel.appendChild(indicator);
-          // --- Ownership roadmap ---
-          const roadmap = slide1.querySelector('#roadmap-owners');
-          owners.forEach(owner => {
-            const card = document.createElement('div');
-            card.className = 'owner-card';
-            card.innerHTML = `
-              <div class="owner-avatar"></div>
-              <div style="font-weight:bold;">${owner.name}</div>
-              <div style="font-size:0.8em; color:#888;">${owner.date}</div>
-              <div style="font-size:0.7em; color:#2c3e50; margin-top:4px;">${owner.tx}</div>
-            `;
-            roadmap.appendChild(card);
-          });
-          // --- Gestione swipe/scroll tra slide ---
+          infoPanel.appendChild(content);
+          // --- Gestione drag/swipe per espansione ---
           let startY = null;
-          let isAnimating = false;
-          infoPanel.addEventListener('touchstart', (e) => {
+          let startHeight = null;
+          let isDragging = false;
+          dragHandle.addEventListener('touchstart', (e) => {
             if (e.touches.length === 1) {
               startY = e.touches[0].clientY;
+              startHeight = currentHeight;
+              isDragging = true;
             }
           });
-          infoPanel.addEventListener('touchend', (e) => {
-            if (startY !== null && !isAnimating) {
-              const endY = e.changedTouches[0].clientY;
-              const deltaY = startY - endY;
-              if (Math.abs(deltaY) > 40) {
-                if (deltaY > 0 && currentSlide < 3) {
-                  // Avanti
-                  goToSlide(currentSlide + 1);
-                } else if (deltaY < 0 && currentSlide > 0) {
-                  // Indietro
-                  goToSlide(currentSlide - 1);
-                }
+          window.addEventListener('touchmove', (e) => {
+            if (isDragging && e.touches.length === 1) {
+              const delta = startY - e.touches[0].clientY;
+              let newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + delta));
+              infoPanel.style.height = newHeight + 'px';
+              content.style.height = (newHeight - 25) + 'px';
+              currentHeight = newHeight;
+            }
+          });
+          window.addEventListener('touchend', () => {
+            if (isDragging) {
+              // Snap
+              if (currentHeight > (minHeight + maxHeight) / 2) {
+                infoPanel.style.height = maxHeight + 'px';
+                content.style.height = (maxHeight - 25) + 'px';
+                isFullscreen = true;
+                content.style.overflowY = 'auto';
+              } else {
+                infoPanel.style.height = minHeight + 'px';
+                content.style.height = (minHeight - 25) + 'px';
+                isFullscreen = false;
+                content.scrollTop = 0;
+                content.style.overflowY = 'hidden';
               }
-              startY = null;
+              isDragging = false;
             }
           });
-          // --- Funzione per cambiare slide ---
-          function goToSlide(idx) {
-            if (isAnimating) return;
-            isAnimating = true;
-            // Slide out/in
-            slideContainer.querySelector('.slide.active').classList.remove('active');
-            slideContainer.querySelector('.slide-' + idx).classList.add('active');
-            // Aggiorna indicatori
-            Array.from(indicator.children).forEach((dot, i) => {
-              dot.className = 'dot' + (i === idx ? ' active' : '');
-            });
-            currentSlide = idx;
-            // Se ownership, parte animazione orizzontale
-            if (idx === 1) {
-              animateRoadmap(() => {
-                // Dopo animazione, passa alla slide successiva
-                setTimeout(() => goToSlide(2), 600);
-              });
-            }
-            setTimeout(() => { isAnimating = false; }, 700);
-          }
-          // --- Animazione roadmap orizzontale ---
-          function animateRoadmap(cb) {
-            const roadmap = slide1.querySelector('#roadmap-owners');
-            const totalWidth = roadmap.scrollWidth - roadmap.clientWidth;
-            if (totalWidth > 0) {
-              gsap.to(roadmap, { scrollTo: { x: totalWidth }, duration: 1.2, ease: 'power2.inOut', onComplete: cb });
-            } else {
-              setTimeout(cb, 400);
-            }
-          }
         } else {
           // Desktop: stile classico
           infoPanel.style.position = 'fixed';
