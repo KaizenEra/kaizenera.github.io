@@ -4,14 +4,16 @@ const cors = require("cors");
 
 const app = express();
 
-// Configurazione CORS ottimizzata
-app.use(cors({
+// CORS PRIMA DI TUTTO
+const corsOptions = {
   origin: "https://kaizenera.github.io",
   methods: ["POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Accept"],
   credentials: true,
-  maxAge: 86400 // Cache preflight requests for 24 hours
-}));
+  maxAge: 86400
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Compressione delle risposte
 app.use(express.json({ limit: '1mb' }));
