@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Backend</title>
+    <meta charset="utf-8">
+</head>
+<body>
+    <h1>Test Backend Fly.io</h1>
+    
+    <button onclick="testBackend()">Test Backend</button>
+    <button onclick="testCORS()">Test CORS</button>
+    <button onclick="testStripe()">Test Stripe</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        function testBackend() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing backend...</p>';
+            
+            fetch('https://kaizenerawrld.fly.dev/')
+                .then(response => response.json())
+                .then(data => {
+                    results.innerHTML = '<p style="color: green;">✅ Backend OK: ' + JSON.stringify(data) + '</p>';
+                })
+                .catch(error => {
+                    results.innerHTML = '<p style="color: red;">❌ Backend Error: ' + error.message + '</p>';
+                });
+        }
+        
+        function testCORS() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing CORS...</p>';
+            
+            fetch('https://kaizenerawrld.fly.dev/test-cors')
+                .then(response => response.json())
+                .then(data => {
+                    results.innerHTML = '<p style="color: green;">✅ CORS OK: ' + JSON.stringify(data) + '</p>';
+                })
+                .catch(error => {
+                    results.innerHTML = '<p style="color: red;">❌ CORS Error: ' + error.message + '</p>';
+                });
+        }
+        
+        function testStripe() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing Stripe...</p>';
+            
+            const requestBody = {
+                item: {
+                    price_data: {
+                        currency: "eur",
+                        product_data: { 
+                            name: "Test NFT" 
+                        },
+                        unit_amount: 4900
+                    },
+                    quantity: 1
+                }
+            };
+            
+            fetch('https://kaizenerawrld.fly.dev/create-checkout-session', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.url) {
+                    results.innerHTML = '<p style="color: green;">✅ Stripe OK: ' + data.url + '</p>';
+                } else {
+                    results.innerHTML = '<p style="color: orange;">⚠️ Stripe Response: ' + JSON.stringify(data) + '</p>';
+                }
+            })
+            .catch(error => {
+                results.innerHTML = '<p style="color: red;">❌ Stripe Error: ' + error.message + '</p>';
+            });
+        }
+    </script>
+</body>
+</html> 

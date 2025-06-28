@@ -723,5 +723,92 @@
         setCameraAndZoom();
       });
     </script>
+    <script>
+      // Global function for preorder
+      window.handlePreorder = function(nftName) {
+        console.log('=== PREORDER DEBUG START ===');
+        console.log('Preorder button clicked for NFT:', nftName);
+        console.log('Current URL:', window.location.href);
+        console.log('User Agent:', navigator.userAgent);
+        
+        const requestBody = {
+          item: {
+            price_data: {
+              currency: "eur",
+              product_data: { 
+                name: "Kaizen Era NFT - " + nftName 
+              },
+              unit_amount: 4900
+            },
+            quantity: 1
+          }
+        };
+        
+        console.log('Request body:', requestBody);
+        console.log('Backend URL: https://kaizenerawrld.fly.dev/create-checkout-session');
+        
+        // Test if backend is reachable first
+        console.log('Testing backend connectivity...');
+        fetch("https://kaizenerawrld.fly.dev/")
+          .then(response => {
+            console.log('Backend test response status:', response.status);
+            return response.json();
+          })
+          .then(data => {
+            console.log('Backend test response:', data);
+            // If backend is reachable, proceed with checkout
+            return createCheckoutSession(requestBody);
+          })
+          .catch(error => {
+            console.error('Backend connectivity test failed:', error);
+            alert('Errore: Impossibile raggiungere il server. Riprova più tardi.');
+          });
+      };
+      
+      function createCheckoutSession(requestBody) {
+        console.log('Creating checkout session...');
+        
+        return fetch("https://kaizenerawrld.fly.dev/create-checkout-session", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(requestBody)
+        })
+        .then(async res => {
+          console.log('Checkout response status:', res.status);
+          console.log('Checkout response headers:', res.headers);
+          
+          // Try to get the response text even if it's not JSON
+          const text = await res.text();
+          console.log('Raw checkout response:', text);
+          
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}, body: ${text}`);
+          }
+          
+          try {
+            return JSON.parse(text);
+          } catch (e) {
+            throw new Error(`Invalid JSON response: ${text}`);
+          }
+        })
+        .then(data => {
+          console.log('Checkout response data:', data);
+          if (data.url) {
+            console.log('Redirecting to Stripe:', data.url);
+            window.location.href = data.url;
+          } else {
+            console.error('No URL in response:', data);
+            alert('Errore: La risposta dal server non contiene un URL di pagamento valido.');
+          }
+        })
+        .catch(error => {
+          console.error('Error during checkout:', error);
+          alert('Errore durante il preordine: ' + error.message);
+        });
+      }
+    </script>
   </body>
 </html>
