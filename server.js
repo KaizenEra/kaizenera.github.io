@@ -4,16 +4,9 @@ const cors = require("cors");
 
 const app = express();
 
-// CORS PRIMA DI TUTTO
-const corsOptions = {
-  origin: "https://kaizenera.github.io",
-  methods: ["POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Accept"],
-  credentials: true,
-  maxAge: 86400
-};
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+// CORS PRIMA DI TUTTO (temporaneamente aperto per debug)
+app.use(cors());
+app.options('*', cors());
 
 // Compressione delle risposte
 app.use(express.json({ limit: '1mb' }));
@@ -84,7 +77,7 @@ app.use((err, req, res, next) => {
 
 // Configurazione del server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Stripe backend online');
 }); 
