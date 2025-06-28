@@ -27,15 +27,39 @@ app.use((req, res, next) => {
   next();
 });
 
+// Endpoint di test
+app.get("/", (req, res) => {
+  res.json({ 
+    message: "Backend Fly.io is running!", 
+    timestamp: new Date().toISOString(),
+    stripe: process.env.STRIPE_SECRET_KEY ? "Configured" : "Not configured"
+  });
+});
+
+// Endpoint di test per CORS
+app.get("/test-cors", (req, res) => {
+  res.json({ 
+    message: "CORS test successful",
+    origin: req.headers.origin,
+    method: req.method
+  });
+});
+
 // Route principale ottimizzata
 app.post("/create-checkout-session", async (req, res) => {
   try {
-    // Validazione rapida della richiesta
+    console.log("Received checkout request:", req.body);
+    
     if (!req.body.item || !req.body.item.price_data) {
+      console.log("Invalid request format");
       return res.status(400).json({ error: 'Invalid request format' });
     }
-
-    // Creazione sessione Stripe con timeout ridotto
+    
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.log("Stripe secret key not configured");
+      return res.status(500).json({ error: 'Stripe not configured' });
+    }
+    
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
@@ -50,13 +74,11 @@ app.post("/create-checkout-session", async (req, res) => {
     }, {
       timeout: 5000 // Timeout di 5 secondi per la creazione della sessione
     });
-
-    // Risposta immediata con l'URL
+    
+    console.log("Stripe session created:", session.id);
     res.json({ url: session.url });
   } catch (error) {
     console.error('Error creating checkout session:', error);
-    
-    // Risposta di errore ottimizzata
     res.status(error.statusCode || 500).json({
       error: 'Errore durante la creazione della sessione di pagamento',
       details: error.message,
@@ -80,4 +102,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Stripe backend online');
+  console.log('Stripe key configured:', process.env.STRIPE_SECRET_KEY ? 'YES' : 'NO');
 }); 
