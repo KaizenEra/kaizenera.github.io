@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<!-- https://threejs.org/examples/webgl_animation_keyframes.html -->
+<html>
+  <head>
+    <title>Kaizen Era Wrld</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <link type="text/css" rel="stylesheet" href="main.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link rel="icon" type="image/png" href="favicon kzn era.png">
+    <style>
+      html, body {
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
+        padding: 0;
+        background-color: #bfe3dd;
+        color: #000;
+        overflow: hidden;
+      }
+      #container {
+        width: 100vw;
+        height: 100vh;
+        position: relative;
+        z-index: 1;
+      }
+      #info-panel {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100vw;
+        height: 40vh;
+        background: rgba(255,255,255,0.97);
+        border-radius: 24px 24px 0 0;
+        box-shadow: 0 -8px 32px rgba(0,0,0,0.22);
+        overflow: hidden;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+      }
+      .info-content {
+        padding: 0 10px 30px 10px;
+        overflow-y: auto;
+        height: 100%;
+      }
+      .section-title {
+        font-size: 1.2em;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      .roadmap-owners {
+        display: flex;
+        flex-direction: row;
+        gap: 24px;
+        width: 100vw;
+        overflow-x: auto;
+        align-items: center;
+        justify-content: flex-start;
+        position: relative;
+      }
+      .owner-card {
+        min-width: 180px;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transition: transform 0.3s;
+      }
+      .owner-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #eee;
+        margin-bottom: 8px;
+      }
+      .back-button {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 100;
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        cursor: pointer;
+        font-size: 16px;
+        display: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+      .preorder-button {
+        background: #000;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-size: 16px;
+        cursor: pointer;
+        margin-top: 20px;
+        transition: all 0.3s ease;
+      }
+      .preorder-button:hover {
+        background: #333;
+        transform: translateY(-2px);
+      }
+      @media (min-width: 700px) {
+        #info-panel {
+          width: 340px;
+          height: 90vh;
+          left: auto;
+          right: 20px;
+          top: 20px;
+          bottom: auto;
+          border-radius: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container"></div>
+    <button class="back-button" id="backButton">Torna alla vista principale</button>
+    <script type="module">
+      import * as THREE from './three.module.js';
+      import { OrbitControls } from './OrbitControls.js';
+      import { GLTFLoader } from './GLTFLoader.js';
+      import { DRACOLoader } from './DRACOLoader.js';
+      let mixer;
+      const clock = new THREE.Clock();
+      const container = document.getElementById( 'container' );
+      const renderer = new THREE.WebGLRenderer( { antialias: true } );
+      renderer.setPixelRatio( window.devicePixelRatio );
+      renderer.setSize( window.innerWidth, window.innerHeight );
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.shadowMap.enabled = true;
+      container.appendChild( renderer.domElement );
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color( 0xbfe3dd );
+      
+      // Raycaster setup for hover effects
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+      let hoveredObject = null;
+      let selectedNFT = null;
+      
+      // NFT objects and their data
+      const nfts = {
+        NFT1Undercover: {
+          name: 'NFT1Undercover',
+          title: 'Undercover Collection',
+          description: 'Un capo unico della collezione Undercover...',
+          features: [
+            'Design esclusivo',
+            'Materiali premium',
+            'Edizione limitata'
+          ]
+        },
+        NFT2KapitalJeans: {
+          name: 'NFT2KapitalJeans',
+          title: 'Kapital Jeans',
+          description: 'Jeans iconici della collezione Kapital...',
+          features: [
+            'Denim artigianale',
+            'Dettagli unici',
+            'Collezione speciale'
+          ]
+        },
+        NFT2KapitalPatched: {
+          name: 'NFT2KapitalPatched',
+          title: 'Kapital Patched',
+          description: 'Un capo patchato unico nel suo genere...',
+          features: [
+            'Patch artigianali',
+            'Design distintivo',
+            'Pezzo unico'
+          ]
+        }
+      };
+
+      // Store references to NFT objects and their original states
+      const nftObjects = {};
+      const originalStates = {};
+      
+      const hoverScale = 1.05;
+      const hoverOffset = 0.06;
+      const lerpFactor = 0.035;
+      
+      // Camera setup
+      const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+      camera.position.set( 10, 10, 10 );
+      
+      // Controls setup
+      const controls = new OrbitControls( camera, renderer.domElement );
+      controls.target.set( 0, 0, 0 );
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.enablePan = false;
+      controls.mouseButtons.RIGHT = null;
+      controls.mouseButtons.MIDDLE = null;
+      controls.update();
+      
+      // Add zoom event handler
+      const detailViewDistance = 1.7;
+      controls.addEventListener('change', function() {
+        const currentDistance = camera.position.distanceTo(controls.target);
+        if (currentDistance < detailViewDistance) {
+          // Calculate direction from target to camera
+          const direction = new THREE.Vector3()
+            .subVectors(camera.position, controls.target)
+            .normalize();
+          
+          // Set new camera position at minimum distance
+          camera.position.copy(controls.target)
+            .add(direction.multiplyScalar(detailViewDistance));
+        }
+      });
+      
+      let isZoomed = false;
+      let originalCameraPosition = new THREE.Vector3();
+      let originalControlsTarget = new THREE.Vector3();
+      let infoPanel = null;
+      
+      // Mouse move handler
+      function onMouseMove(event) {
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      }
+      
+      // Touch move handler
+      function onTouchMove(event) {
+        if (event.touches.length > 0) {
+          mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
+          mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
+        }
+      }
+      
+      // Function to animate NFT to hover state
+      function animateToHoverState(nftObject, nftName) {
+        if (!nftObject || !nftName) return;
+        
+        const hoverPosition = new THREE.Vector3(
+          originalStates[nftName].position.x,
+          originalStates[nftName].position.y,
+          originalStates[nftName].position.z + hoverOffset
+        );
+        
+        const hoverScaleVector = new THREE.Vector3(
+          originalStates[nftName].scale.x * hoverScale,
+          originalStates[nftName].scale.y * hoverScale,
+          originalStates[nftName].scale.z * hoverScale
+        );
+        
+        gsap.to(nftObject.position, {
+          x: hoverPosition.x,
+          y: hoverPosition.y,
+          z: hoverPosition.z,
+          duration: 0.3,
+          ease: "power2.out"
+        });
+        
+        gsap.to(nftObject.scale, {
+          x: hoverScaleVector.x,
+          y: hoverScaleVector.y,
+          z: hoverScaleVector.z,
+          duration: 0.3,
+          ease: "power2.out"
+        });
+      }
+
+      // Function to reset NFT to original state
+      function resetNFT(nftObject, nftName) {
+        if (!nftObject || !nftName) return;
+        
+        gsap.to(nftObject.position, {
+          x: originalStates[nftName].position.x,
+          y: originalStates[nftName].position.y,
+          z: originalStates[nftName].position.z,
+          duration: 0.3,
+          ease: "power2.inOut"
+        });
+        
+        gsap.to(nftObject.scale, {
+          x: originalStates[nftName].scale.x,
+          y: originalStates[nftName].scale.y,
+          z: originalStates[nftName].scale.z,
+          duration: 0.3,
+          ease: "power2.inOut"
+        });
+      }
+      
+      // Funzione di utilità per capire se siamo su mobile
+      function isMobile() {
+        return window.innerWidth < 700;
+      }
+      
+      // Blocca lo scroll del body
+      function lockBodyScroll() {
+        document.body.style.overflow = 'hidden';
+        document.body.style.height = '100vh';
+      }
+      function unlockBodyScroll() {
+        document.body.style.overflow = '';
+        document.body.style.height = '';
+      }
+      
+      // Function to show info panel
+      function showInfoPanel(nftName) {
+        const nftData = nfts[nftName];
+        if (infoPanel) {
+          document.body.removeChild(infoPanel);
+        }
+        infoPanel = document.createElement('div');
+        infoPanel.id = 'info-panel';
+        // Dummy blockchain data
+        const owners = [
+          { name: 'Fabio', avatar: '', date: '2024-01-01', tx: '0x1234...abcd' },
+          { name: 'Alice', avatar: '', date: '2024-02-15', tx: '0x2345...bcde' },
+          { name: 'Bob', avatar: '', date: '2024-03-10', tx: '0x3456...cdef' },
+          { name: 'Eve', avatar: '', date: '2024-04-01', tx: '0x4567...def0' }
+        ];
+        const stats = [
+          { label: 'Rarity', value: 'Ultra Rare' },
+          { label: 'Minted', value: '2023-12-01' },
+          { label: 'Current Owner', value: 'Fabio' },
+          { label: 'Total Transfers', value: '4' },
+          { label: 'Blockchain', value: 'Ethereum' }
+        ];
+        // --- Contenuto scrollabile ---
+        const content = document.createElement('div');
+        content.className = 'info-content';
+        content.innerHTML = `
+          <div class="section-title">${nftData.title}</div>
+          <p>${nftData.description}</p>
+          <p>Caratteristiche:</p>
+          <ul>${nftData.features.map(feature => `<li>${feature}</li>`).join('')}</ul>
+          <hr/>
+          <div class="section-title">Provenienza Blockchain</div>
+          <div class="roadmap-owners">
+            ${owners.map(owner => `
+              <div class="owner-card">
+                <div class="owner-avatar"></div>
+                <div style="font-weight:bold;">${owner.name}</div>
+                <div style="font-size:0.8em; color:#888;">${owner.date}</div>
+                <div style="font-size:0.7em; color:#2c3e50; margin-top:4px;">${owner.tx}</div>
+              </div>
+            `).join('')}
+          </div>
+          <hr/>
+          <div class="section-title">Statistiche NFT</div>
+          <ul>${stats.map(stat => `<li><b>${stat.label}:</b> ${stat.value}</li>`).join('')}</ul>
+          <hr/>
+          <div class="section-title">Altre info</div>
+          <p>Questa sezione può contenere ulteriori dettagli, link, documentazione, ecc.</p>
+          <button class="preorder-button" onclick="handlePreorder('${nftData.name}')">Preordina ora</button>
+        `;
+        infoPanel.appendChild(content);
+        document.body.appendChild(infoPanel);
+        document.querySelector('.back-button').style.display = 'block';
+      }
+      
+      // Function to hide info panel
+      function hideInfoPanel() {
+        if (infoPanel) {
+          if (isMobile()) unlockBodyScroll();
+          if (isMobile()) {
+            infoPanel.style.transform = 'translateY(100%)';
+          } else {
+            infoPanel.style.transform = 'translateX(100%)';
+          }
+          setTimeout(() => {
+            if (infoPanel && infoPanel.parentNode) {
+              document.body.removeChild(infoPanel);
+              infoPanel = null;
+            }
+          }, 500); // Wait for animation to complete
+        }
+      }
+      
+      // Click handler
+      function onClick(event) {
+        const intersects = raycaster.intersectObjects(Object.values(nftObjects), true);
+        if (intersects.length > 0) {
+          const clickedNFT = intersects[0].object;
+          const nftName = Object.keys(nftObjects).find(key => nftObjects[key] === clickedNFT);
+          // Responsive: zoomDistance diverso su mobile
+          let zoomDistance = 1.7;
+          if (isMobile()) zoomDistance = 3.2;
+          if (!isZoomed) {
+            originalCameraPosition.copy(camera.position);
+            originalControlsTarget.copy(controls.target);
+            const targetPosition = clickedNFT.position.clone();
+            const modelCenter = new THREE.Vector3();
+            modelBox.getCenter(modelCenter);
+            const directionToNFT = new THREE.Vector3().subVectors(targetPosition, modelCenter).normalize();
+            const initialDirection = new THREE.Vector3(
+              directionToNFT.x * 0.5,
+              directionToNFT.y,
+              directionToNFT.z
+            ).normalize();
+            const cameraPosition = new THREE.Vector3().copy(targetPosition).add(initialDirection.multiplyScalar(zoomDistance));
+            selectedNFT = clickedNFT;
+            animateToHoverState(selectedNFT, nftName);
+            showInfoPanel(nftName);
+            gsap.to(camera.position, {
+              x: cameraPosition.x,
+              y: cameraPosition.y,
+              z: cameraPosition.z,
+              duration: 1,
+              ease: "power2.inOut",
+              onComplete: () => {
+                controls.minDistance = zoomDistance;
+                controls.maxDistance = zoomDistance;
+                controls.enabled = false;
+                controls.update();
+              }
+            });
+            gsap.to(controls.target, {
+              x: targetPosition.x,
+              y: targetPosition.y,
+              z: targetPosition.z,
+              duration: 1,
+              ease: "power2.inOut"
+            });
+            isZoomed = true;
+          } else {
+            // Se già zoommato, switcha NFT
+            const targetPosition = clickedNFT.position.clone();
+            let zoomDistance = 1.7;
+            if (isMobile()) zoomDistance = 3.2;
+            const modelCenter = new THREE.Vector3();
+            modelBox.getCenter(modelCenter);
+            const directionToNFT = new THREE.Vector3().subVectors(targetPosition, modelCenter).normalize();
+            const initialDirection = new THREE.Vector3(
+              directionToNFT.x * 0.5,
+              directionToNFT.y,
+              directionToNFT.z
+            ).normalize();
+            const cameraPosition = new THREE.Vector3().copy(targetPosition).add(initialDirection.multiplyScalar(zoomDistance));
+            if (selectedNFT) {
+              const prevNftName = Object.keys(nftObjects).find(key => nftObjects[key] === selectedNFT);
+              if (prevNftName) {
+                resetNFT(selectedNFT, prevNftName);
+              }
+            }
+            selectedNFT = clickedNFT;
+            animateToHoverState(selectedNFT, nftName);
+            gsap.to(camera.position, {
+              x: cameraPosition.x,
+              y: cameraPosition.y,
+              z: cameraPosition.z,
+              duration: 1,
+              ease: "power2.inOut"
+            });
+            gsap.to(controls.target, {
+              x: targetPosition.x,
+              y: targetPosition.y,
+              z: targetPosition.z,
+              duration: 1,
+              ease: "power2.inOut"
+            });
+            showInfoPanel(nftName);
+          }
+        }
+      }
+      
+      // Touch start handler per simulare hover su mobile
+      function onTouchStartNFT(event) {
+        if (event.touches.length === 1) {
+          // Calcola coordinate normalizzate
+          const touch = event.touches[0];
+          mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
+          mouse.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+          // Raycast sugli NFT
+          const intersects = raycaster.intersectObjects(Object.values(nftObjects), true);
+          if (intersects.length > 0) {
+            const hoveredNFT = intersects[0].object;
+            const nftName = Object.keys(nftObjects).find(key => nftObjects[key] === hoveredNFT);
+            if (hoveredObject !== hoveredNFT && hoveredNFT !== selectedNFT) {
+              if (hoveredObject && hoveredObject !== selectedNFT) {
+                const prevNftName = Object.keys(nftObjects).find(key => nftObjects[key] === hoveredObject);
+                if (prevNftName) {
+                  resetNFT(hoveredObject, prevNftName);
+                }
+              }
+              hoveredObject = hoveredNFT;
+              animateToHoverState(hoveredNFT, nftName);
+            }
+          }
+        }
+      }
+
+      // Touch end handler per simulare click su mobile
+      function onTouchEndNFT(event) {
+        // Simula click solo se era in hover
+        if (hoveredObject) {
+          // Simula click
+          onClick(event);
+        }
+      }
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('touchmove', onTouchMove);
+      window.addEventListener('click', onClick);
+      window.addEventListener('touchstart', onTouchStartNFT);
+      window.addEventListener('touchend', onTouchEndNFT);
+      
+      // Lighting setup
+      const ambientLight = new THREE.AmbientLight( 0xffffff, 0.5 );
+      scene.add( ambientLight );
+      
+      const dirLight = new THREE.DirectionalLight( 0xffffff, 1 );
+      dirLight.position.set( 10, 10, 10 );
+      dirLight.castShadow = true;
+      scene.add( dirLight );
+      
+      const dracoLoader = new DRACOLoader();
+      dracoLoader.setDecoderPath( './' );
+      dracoLoader.setDecoderConfig({ type: 'js' });
+      dracoLoader.onError = function(error) {
+        console.error('Draco decoder error:', error);
+      };
+      const loader = new GLTFLoader();
+      loader.setDRACOLoader( dracoLoader );
+      
+      // Add loading manager
+      const loadingManager = new THREE.LoadingManager();
+      loadingManager.onProgress = function ( url, itemsLoaded, itemsTotal ) {
+        console.log( 'Loading file: ' + url + '.\nLoaded ' + itemsLoaded + ' of ' + itemsTotal + ' files.' );
+        // Update loading progress
+        const progress = (itemsLoaded / itemsTotal) * 100;
+        if (loadingElement) {
+          loadingElement.textContent = `Loading: ${Math.round(progress)}%`;
+        }
+      };
+      loadingManager.onError = function ( url ) {
+        console.log( 'There was an error loading ' + url );
+        if (loadingElement) {
+          loadingElement.textContent = 'Error loading model. Please refresh the page.';
+          loadingElement.style.color = 'red';
+        }
+      };
+      loader.manager = loadingManager;
+      
+      // Add loading element
+      const loadingElement = document.createElement('div');
+      loadingElement.style.position = 'fixed';
+      loadingElement.style.top = '50%';
+      loadingElement.style.left = '50%';
+      loadingElement.style.transform = 'translate(-50%, -50%)';
+      loadingElement.style.color = 'white';
+      loadingElement.style.fontSize = '24px';
+      loadingElement.style.fontFamily = 'Arial, sans-serif';
+      loadingElement.style.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
+      loadingElement.textContent = 'Loading model...';
+      document.body.appendChild(loadingElement);
+      
+      let modelBox, modelCenter, modelSize, modelMaxDim, modelDistance;
+      
+      loader.load( 'kaizen-era-shop-nft123.glb', function ( gltf ) {
+        // Remove loading element when model is loaded
+        if (loadingElement && loadingElement.parentNode) {
+          loadingElement.parentNode.removeChild(loadingElement);
+        }
+        const model = gltf.scene;
+        
+        // Find all NFT objects
+        model.traverse((child) => {
+          Object.keys(nfts).forEach(nftName => {
+            if (child.name === nftName) {
+              nftObjects[nftName] = child;
+              originalStates[nftName] = {
+                scale: child.scale.clone(),
+                position: child.position.clone()
+              };
+            }
+          });
+        });
+        
+        // Center the model
+        const box = new THREE.Box3().setFromObject(model);
+        const center = box.getCenter(new THREE.Vector3());
+        model.position.sub(center);
+        
+        // Scale the model appropriately
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = 5 / maxDim;
+        model.scale.multiplyScalar(scale);
+        
+        scene.add( model );
+        
+        // Salva info per responsività
+        modelBox = box;
+        modelCenter = center;
+        modelSize = size;
+        modelMaxDim = maxDim;
+        
+        // --- CAMERA FRONT VIEW OPTIMIZED & RESPONSIVE ---
+        setCameraAndZoom();
+        
+        if (gltf.animations && gltf.animations.length > 0) {
+          mixer = new THREE.AnimationMixer( model );
+          mixer.clipAction( gltf.animations[ 0 ] ).play();
+        }
+        
+        // --- CAMERA FRONT VIEW OPTIMIZED ---
+        // Calcolo la dimensione massima per vedere tutto il modello
+        const distance = maxDim * 2.7 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+        camera.position.set(center.x, center.y, center.z + distance);
+        // Calcolo la base del modello (minY della bounding box)
+        controls.target.set(center.x, center.y, center.z);
+        controls.minPolarAngle = 0;
+        controls.maxPolarAngle = Math.PI / 1.9;
+        
+        // Imposta i limiti di zoom iniziali
+        const minDistance = getSafeMinDistance(box, camera);
+        controls.minDistance = 0;
+        controls.maxDistance = minDistance * 1.5;
+        controls.update();
+        
+        animate();
+      }, 
+      // Progress callback
+      function ( xhr ) {
+        console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+      },
+      // Error callback
+      function ( error ) {
+        console.error( 'An error happened loading the model:', error );
+      } );
+      
+      function animate() {
+        requestAnimationFrame(animate);
+        const delta = clock.getDelta();
+        if (mixer) mixer.update(delta);
+        
+        // Update raycaster
+        raycaster.setFromCamera(mouse, camera);
+        
+        // Check for intersections with all NFTs
+        Object.entries(nftObjects).forEach(([nftName, nftObject]) => {
+          const intersects = raycaster.intersectObject(nftObject, true);
+          
+          if (intersects.length > 0) {
+            if (hoveredObject !== nftObject && nftObject !== selectedNFT) {
+              // Reset previous hovered object if exists
+              if (hoveredObject && hoveredObject !== selectedNFT) {
+                const prevNftName = Object.keys(nftObjects).find(key => nftObjects[key] === hoveredObject);
+                if (prevNftName) {
+                  resetNFT(hoveredObject, prevNftName);
+                }
+              }
+              hoveredObject = nftObject;
+              animateToHoverState(nftObject, nftName);
+            }
+          } else {
+            if (hoveredObject === nftObject && nftObject !== selectedNFT) {
+              hoveredObject = null;
+              resetNFT(nftObject, nftName);
+            }
+          }
+        });
+        
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      
+      // Funzione per calcolare la distanza minima sicura per vedere tutto il modello anche ruotando
+      function getSafeMinDistance(box, camera) {
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const diagonal = size.length() / 2;
+        const margin = 2; // 15% di margine
+        const fov = camera.fov * (Math.PI / 180);
+        const aspect = camera.aspect;
+        const fitHeightDistance = (diagonal * margin) / Math.sin(fov / 2);
+        const fitWidthDistance = (diagonal * margin) / Math.sin(Math.atan(Math.tan(fov / 2) * aspect));
+        return Math.max(fitHeightDistance, fitWidthDistance);
+      }
+      
+      // Funzione per impostare camera e limiti zoom in modo responsive
+      function setCameraAndZoom() {
+        if (!modelBox) return;
+        const center = modelBox.getCenter(new THREE.Vector3());
+        modelCenter = center;
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        const minDistance = getSafeMinDistance(modelBox, camera);
+        // Imposta solo il limite di zoom out
+        controls.minDistance = 0;
+        controls.maxDistance = minDistance * 3; // Limite solo per lo zoom out
+        controls.target.set(center.x, center.y, center.z);
+        controls.update();
+        modelDistance = minDistance;
+        const camDir = new THREE.Vector3();
+        camera.getWorldDirection(camDir);
+        camDir.normalize();
+        camera.position.set(center.x, center.y, center.z + minDistance * 1.05);
+      }
+      
+      // Aggiorna tutto su resize
+      window.addEventListener('resize', () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        setCameraAndZoom();
+      });
+
+      // Function to handle preorder
+      window.handlePreorder = function(nftName) {
+        fetch("https://kaizenera-stripe-backend.onrender.com/create-checkout-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            item: {
+              price_data: {
+                currency: "eur",
+                product_data: {
+                  name: `${nfts[nftName].title} - Preorder`
+                },
+                unit_amount: 4900 // 49,00 €
+              },
+              quantity: 1
+            }
+          })
+        })
+        .then(res => res.json())
+        .then(data => window.location.href = data.url);
+      };
+
+      // Make hideNFTDetails available globally
+      window.hideNFTDetails = function() {
+        if (isZoomed) {
+          if (selectedNFT) {
+            const nftName = Object.keys(nftObjects).find(key => nftObjects[key] === selectedNFT);
+            if (nftName) {
+              resetNFT(selectedNFT, nftName);
+            }
+            selectedNFT = null;
+          }
+          const minDistance = getSafeMinDistance(modelBox, camera);
+          controls.minDistance = 0;
+          controls.maxDistance = minDistance * 1.5;
+          controls.enabled = true;
+          gsap.to(camera.position, {
+            x: originalCameraPosition.x,
+            y: originalCameraPosition.y,
+            z: originalCameraPosition.z,
+            duration: 1,
+            ease: "power2.inOut"
+          });
+          gsap.to(controls.target, {
+            x: originalControlsTarget.x,
+            y: originalControlsTarget.y,
+            z: originalControlsTarget.z,
+            duration: 1,
+            ease: "power2.inOut"
+          });
+          const infoPanel = document.getElementById('info-panel');
+          if (infoPanel) {
+            document.body.removeChild(infoPanel);
+          }
+          isZoomed = false;
+        } else {
+          const infoPanel = document.getElementById('info-panel');
+          if (infoPanel) {
+            document.body.removeChild(infoPanel);
+          }
+        }
+        document.querySelector('.back-button').style.display = 'none';
+      };
+
+      // Add click handler for back button
+      document.getElementById('backButton').addEventListener('click', window.hideNFTDetails);
+    </script>
+  </body>
+</html>
