@@ -709,17 +709,15 @@
 
       // Function to handle preorder
       window.handlePreorder = function(nftName) {
-        fetch("https://kaizenera-stripe-backend.onrender.com/create-checkout-session", {
+        fetch("https://kaizenerastripebackend.fly.dev/create-checkout-session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             item: {
               price_data: {
                 currency: "eur",
-                product_data: {
-                  name: `${nfts[nftName].title} - Preorder`
-                },
-                unit_amount: 4900 // 49,00 €
+                product_data: { name: "T-shirt Kaizen Era – Preorder" },
+                unit_amount: 4900
               },
               quantity: 1
             }
