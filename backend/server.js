@@ -1,19 +1,23 @@
 const express = require("express");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
 
 // CORS PRIMA DI TUTTO
 const corsOptions = {
-  origin: "https://kaizenera.github.io",
-  methods: ["POST", "OPTIONS"],
+  origin: "*", // Permetti richieste da qualsiasi origine per test, restringi dopo
+  methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Accept"],
   credentials: true,
   maxAge: 86400
 };
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+
+// Serve i file statici del frontend
+app.use(express.static(path.join(__dirname, "public")));
 
 // Compressione delle risposte
 app.use(express.json({ limit: '1mb' }));
@@ -47,8 +51,8 @@ app.post("/create-checkout-session", async (req, res) => {
       payment_method_types: ["card"],
       mode: "payment",
       line_items: [req.body.item],
-      success_url: "https://kaizenera.github.io/success.html",
-      cancel_url: "https://kaizenera.github.io/cancel.html",
+      success_url: "https://kaizenerastripebackend.fly.dev/success.html", // Aggiorna con il dominio Fly.io
+      cancel_url: "https://kaizenerastripebackend.fly.dev/cancel.html",   // Aggiorna con il dominio Fly.io
       expires_at: Math.floor(Date.now() / 1000) + 1800, // 30 minuti
       billing_address_collection: 'auto',
       shipping_address_collection: {
@@ -62,7 +66,6 @@ app.post("/create-checkout-session", async (req, res) => {
     res.json({ url: session.url });
   } catch (error) {
     console.error('Error creating checkout session:', error);
-    
     // Risposta di errore ottimizzata
     res.status(error.statusCode || 500).json({
       error: 'Errore durante la creazione della sessione di pagamento',
@@ -70,6 +73,11 @@ app.post("/create-checkout-session", async (req, res) => {
       code: error.code
     });
   }
+});
+
+// Fallback per SPA: tutte le altre richieste servono index.html
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 // Gestione errori ottimizzata
@@ -86,5 +94,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log('Stripe backend online');
+  console.log('Stripe backend + frontend online');
 }); 
