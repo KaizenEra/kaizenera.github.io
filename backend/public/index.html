@@ -118,11 +118,42 @@
           border-radius: 10px;
         }
       }
+      .donate-button {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 9999;
+        background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%);
+        color: #fff;
+        border: none;
+        border-radius: 32px;
+        padding: 16px 32px;
+        font-size: 18px;
+        font-weight: bold;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+        cursor: pointer;
+        transition: background 0.2s, transform 0.2s;
+      }
+      .donate-button:hover {
+        background: linear-gradient(90deg, #0072ff 0%, #00c6ff 100%);
+        transform: translateY(-2px) scale(1.04);
+      }
+      @media (max-width: 700px) {
+        .donate-button {
+          right: 10px;
+          left: 10px;
+          width: calc(100vw - 20px);
+          bottom: 10px;
+          padding: 14px 0;
+          font-size: 16px;
+        }
+      }
     </style>
   </head>
   <body>
     <div id="container"></div>
     <button class="back-button" id="backButton">Torna alla vista principale</button>
+    <button id="donateButton" class="donate-button">Dona ora per il progetto</button>
     <script type="module">
       import * as THREE from './three.module.js';
       import { OrbitControls } from './OrbitControls.js';
@@ -771,6 +802,35 @@
 
       // Add click handler for back button
       document.getElementById('backButton').addEventListener('click', window.hideNFTDetails);
+
+      document.getElementById('donateButton').addEventListener('click', function() {
+        fetch('https://kaizenerastripebackend.fly.dev/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            item: {
+              price_data: {
+                currency: 'eur',
+                product: 'prod_SbdlC0hDRK4RdY',
+                unit_amount: 500,
+                recurring: null
+              },
+              adjustable_quantity: { enabled: true, minimum: 1 },
+              quantity: 1
+            },
+            mode: 'payment',
+            allowDonation: true
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.url) {
+            window.location.href = data.url;
+          } else {
+            alert('Errore nel generare la sessione di donazione.');
+          }
+        });
+      });
     </script>
   </body>
 </html>
