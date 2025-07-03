@@ -808,18 +808,12 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            item: {
-              price_data: {
-                currency: 'eur',
-                product: 'prod_SbdlC0hDRK4RdY',
-                unit_amount: 500,
-                recurring: null
-              },
-              adjustable_quantity: { enabled: true, minimum: 1 },
-              quantity: 1
-            },
-            mode: 'payment',
-            allowDonation: true
+            line_items: [{
+              price: 'price_1RgQTeRuBfDvOQFuFQ6VjNQY',
+              quantity: 1,
+              adjustable_quantity: { enabled: true, minimum: 1 }
+            }],
+            mode: 'payment'
           })
         })
         .then(res => res.json())

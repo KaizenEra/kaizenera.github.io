@@ -41,32 +41,20 @@ app.use((req, res, next) => {
 // Route principale ottimizzata
 app.post("/create-checkout-session", async (req, res) => {
   try {
-    // Validazione rapida della richiesta
-    if (!req.body.item || !req.body.item.price_data) {
+    if (!req.body.line_items) {
       return res.status(400).json({ error: 'Invalid request format' });
     }
-
-    // Creazione sessione Stripe con timeout ridotto
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
-      line_items: [req.body.item],
-      success_url: "https://kaizenerastripebackend.fly.dev/success.html", // Aggiorna con il dominio Fly.io
-      cancel_url: "https://kaizenerastripebackend.fly.dev/cancel.html",   // Aggiorna con il dominio Fly.io
-      expires_at: Math.floor(Date.now() / 1000) + 1800, // 30 minuti
+      line_items: req.body.line_items,
+      success_url: "https://kaizenerastripebackend.fly.dev/success.html",
+      cancel_url: "https://kaizenerastripebackend.fly.dev/cancel.html",
       billing_address_collection: 'auto',
-      shipping_address_collection: {
-        allowed_countries: ['IT'],
-      },
-    }, {
-      timeout: 5000 // Timeout di 5 secondi per la creazione della sessione
+      shipping_address_collection: { allowed_countries: ['IT'] }
     });
-
-    // Risposta immediata con l'URL
     res.json({ url: session.url });
   } catch (error) {
-    console.error('Error creating checkout session:', error);
-    // Risposta di errore ottimizzata
     res.status(error.statusCode || 500).json({
       error: 'Errore durante la creazione della sessione di pagamento',
       details: error.message,
