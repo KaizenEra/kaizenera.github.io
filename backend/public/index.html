@@ -156,12 +156,150 @@
           transform: translateX(-50%);
         }
       }
+      /* --- BUTTON UNIVERSALE --- */
+      .kzn-btn {
+        background: linear-gradient(90deg, #36b9bd 0%, #6fc7a9 100%);
+        color: #f5ffff;
+        border: 2px solid #bfe3dd;
+        border-radius: 32px;
+        padding: 14px 32px;
+        font-size: 18px;
+        font-weight: bold;
+        box-shadow: 0 4px 24px rgba(54,185,189,0.18);
+        cursor: pointer;
+        transition: background 0.2s, transform 0.2s, opacity 0.2s;
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        text-align: center;
+        outline: none;
+        width: auto;
+        min-width: 120px;
+        max-width: 90vw;
+        margin: 0 auto;
+      }
+      .kzn-btn:hover {
+        background: linear-gradient(90deg, #6fc7a9 0%, #36b9bd 100%);
+        transform: translateY(-2px) scale(1.04);
+        opacity: 0.95;
+      }
+      @media (max-width: 700px) {
+        .kzn-btn {
+          font-size: 16px;
+          padding: 12px 16px;
+          min-width: 90px;
+          max-width: 98vw;
+        }
+      }
+      @media (max-width: 400px) {
+        .kzn-btn {
+          font-size: 14px;
+          padding: 10px 8px;
+          min-width: 70px;
+        }
+      }
+      /* --- CARD UNIVERSALE --- */
+      .kzn-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 16px;
+        margin: 10px 0;
+      }
+      /* --- DONATE BUTTON SPECIFICO --- */
+      .donate-button {
+        position: fixed;
+        bottom: 32px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        width: auto;
+        max-width: 95vw;
+        min-width: 120px;
+        margin: 0 auto;
+      }
+      @media (max-width: 700px) {
+        .donate-button {
+          bottom: 10px;
+          max-width: 98vw;
+        }
+      }
+      @media (max-width: 400px) {
+        .donate-button {
+          max-width: 99vw;
+        }
+      }
+      /* --- BACK BUTTON --- */
+      .back-button {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 100;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        display: none;
+      }
+      /* --- INFO PANEL --- */
+      #info-panel {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100vw;
+        height: 40vh;
+        background: rgba(255,255,255,0.97);
+        border-radius: 24px 24px 0 0;
+        box-shadow: 0 -8px 32px rgba(0,0,0,0.22);
+        overflow: hidden;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+      }
+      .info-content {
+        padding: 0 10px 30px 10px;
+        overflow-y: auto;
+        height: 100%;
+      }
+      .section-title {
+        font-size: 1.2em;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      .roadmap-owners {
+        display: flex;
+        flex-direction: row;
+        gap: 24px;
+        width: 100vw;
+        overflow-x: auto;
+        align-items: center;
+        justify-content: flex-start;
+        position: relative;
+      }
+      .owner-card {
+        min-width: 180px;
+        /* background: #fff; */
+        /* border-radius: 16px; */
+        /* box-shadow: 0 2px 12px rgba(0,0,0,0.08); */
+        /* padding: 16px; */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transition: transform 0.3s;
+      }
+      .owner-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #eee;
+        margin-bottom: 8px;
+      }
     </style>
   </head>
   <body>
     <div id="container"></div>
-    <button class="back-button" id="backButton">Torna alla vista principale</button>
-    <button id="donateButton" class="donate-button">Dona per il progetto</button>
+    <button class="back-button kzn-btn" id="backButton">Torna alla vista principale</button>
+    <button id="donateButton" class="donate-button kzn-btn">Dona per il progetto</button>
     <script type="module">
       import * as THREE from './three.module.js';
       import { OrbitControls } from './OrbitControls.js';
@@ -397,7 +535,7 @@
           <hr/>
           <div class="section-title">Altre info</div>
           <p>Questa sezione può contenere ulteriori dettagli, link, documentazione, ecc.</p>
-          <button class="preorder-button" onclick="handlePreorder('${nftData.name}')">Preordina ora</button>
+          <button class="preorder-button kzn-btn" onclick="handlePreorder('${nftData.name}')">Preordina ora</button>
         `;
         infoPanel.appendChild(content);
         document.body.appendChild(infoPanel);
