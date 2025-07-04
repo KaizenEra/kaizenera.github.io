@@ -791,35 +791,50 @@
       // Mostra il pulsante all'avvio
       setDonateButtonVisibility(true);
 
-      // Add click handler for back button
-      document.getElementById('backButton').addEventListener('click', () => {
-        // Reset camera, controlli, stato zoom
+      // Make hideNFTDetails available globally
+      window.hideNFTDetails = function() {
         if (isZoomed) {
-          gsap.to(camera.position, {
-            x: mainCameraPosition.x,
-            y: mainCameraPosition.y,
-            z: mainCameraPosition.z,
-            duration: 1,
-            ease: "power2.inOut",
-            onComplete: () => {
-              controls.enabled = true;
-              controls.minDistance = 0;
-              controls.maxDistance = modelDistance * 3;
-              controls.target.copy(mainControlsTarget);
-              controls.update();
-              isZoomed = false;
-              if (selectedNFT) {
-                const prevNftName = Object.keys(nftObjects).find(key => nftObjects[key] === selectedNFT);
-                if (prevNftName) {
-                  resetNFT(selectedNFT, prevNftName);
-                }
-                selectedNFT = null;
-              }
+          if (selectedNFT) {
+            const nftName = Object.keys(nftObjects).find(key => nftObjects[key] === selectedNFT);
+            if (nftName) {
+              resetNFT(selectedNFT, nftName);
             }
+            selectedNFT = null;
+          }
+          const minDistance = getSafeMinDistance(modelBox, camera);
+          controls.minDistance = 0;
+          controls.maxDistance = minDistance * 1.5;
+          controls.enabled = true;
+          gsap.to(camera.position, {
+            x: originalCameraPosition.x,
+            y: originalCameraPosition.y,
+            z: originalCameraPosition.z,
+            duration: 1,
+            ease: "power2.inOut"
           });
+          gsap.to(controls.target, {
+            x: originalControlsTarget.x,
+            y: originalControlsTarget.y,
+            z: originalControlsTarget.z,
+            duration: 1,
+            ease: "power2.inOut"
+          });
+          if (infoPanel) {
+            document.body.removeChild(infoPanel);
+            infoPanel = null;
+          }
+          isZoomed = false;
+        } else {
+          if (infoPanel) {
+            document.body.removeChild(infoPanel);
+            infoPanel = null;
+          }
         }
-        hideInfoPanel();
-      });
+        document.querySelector('.back-button').style.display = 'none';
+        setDonateButtonVisibility(true);
+      };
+      // Add click handler for back button
+      document.getElementById('backButton').addEventListener('click', window.hideNFTDetails);
 
       document.getElementById('donateButton').addEventListener('click', function() {
         fetch('https://kaizenerastripebackend.fly.dev/create-checkout-session', {
