@@ -347,6 +347,7 @@
       
       // Function to show info panel
       function showInfoPanel(nftName) {
+        setDonateButtonVisibility(false);
         const nftData = nfts[nftName];
         if (infoPanel) {
           document.body.removeChild(infoPanel);
@@ -413,6 +414,8 @@
             if (infoPanel && infoPanel.parentNode) {
               document.body.removeChild(infoPanel);
               infoPanel = null;
+              setDonateButtonVisibility(true);
+              document.querySelector('.back-button').style.display = 'none';
             }
           }, 500); // Wait for animation to complete
         }
@@ -748,22 +751,33 @@
 
       // Function to handle preorder
       window.handlePreorder = function(nftName) {
+        // Mappa NFT -> productId
+        const productMap = {
+          'NFT1Undercover': 'prod_Sc6kvlvdEZRIgn',
+          'NFT2KapitalJeans': 'prod_SWQnMWHMStKsyl',
+          'NFT2KapitalPatched': 'prod_Sc6mngp7AZoc7z'
+        };
+        const productId = productMap[nftName];
+        if (!productId) {
+          alert('Prodotto non disponibile per preorder.');
+          return;
+        }
         fetch("https://kaizenerastripebackend.fly.dev/create-checkout-session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            item: {
-              price_data: {
-                currency: "eur",
-                product_data: { name: "T-shirt Kaizen Era – Preorder" },
-                unit_amount: 4900
-              },
-              quantity: 1
-            }
+            product_id: productId,
+            quantity: 1
           })
         })
         .then(res => res.json())
-        .then(data => window.location.href = data.url);
+        .then(data => {
+          if (data.url) {
+            window.location.href = data.url;
+          } else {
+            alert('Errore nel generare la sessione di preorder.');
+          }
+        });
       };
 
       // Logica smart: nascondi il pulsante quando il pannello info NFT è visibile
@@ -774,20 +788,35 @@
       // Mostra il pulsante all'avvio
       setDonateButtonVisibility(true);
 
-      // Hook su showInfoPanel/hideInfoPanel
-      const originalShowInfoPanel = window.showInfoPanel;
-      window.showInfoPanel = function(...args) {
-        setDonateButtonVisibility(false);
-        return originalShowInfoPanel.apply(this, args);
-      };
-      const originalHideNFTDetails = window.hideNFTDetails;
-      window.hideNFTDetails = function(...args) {
-        setDonateButtonVisibility(true);
-        return originalHideNFTDetails.apply(this, args);
-      };
-
       // Add click handler for back button
-      document.getElementById('backButton').addEventListener('click', window.hideNFTDetails);
+      document.getElementById('backButton').addEventListener('click', () => {
+        // Reset camera, controlli, stato zoom
+        if (isZoomed) {
+          gsap.to(camera.position, {
+            x: originalCameraPosition.x,
+            y: originalCameraPosition.y,
+            z: originalCameraPosition.z,
+            duration: 1,
+            ease: "power2.inOut",
+            onComplete: () => {
+              controls.enabled = true;
+              controls.minDistance = 0;
+              controls.maxDistance = modelDistance * 3;
+              controls.target.copy(originalControlsTarget);
+              controls.update();
+              isZoomed = false;
+              if (selectedNFT) {
+                const prevNftName = Object.keys(nftObjects).find(key => nftObjects[key] === selectedNFT);
+                if (prevNftName) {
+                  resetNFT(selectedNFT, prevNftName);
+                }
+                selectedNFT = null;
+              }
+            }
+          });
+        }
+        hideInfoPanel();
+      });
 
       document.getElementById('donateButton').addEventListener('click', function() {
         fetch('https://kaizenerastripebackend.fly.dev/create-checkout-session', {
